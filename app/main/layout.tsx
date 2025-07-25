@@ -2,6 +2,8 @@ import Head from 'next/head';
 import Sidebar from '@/app/ui/sidebar';
 import Header from '@/app/ui/header';
 import Footer from '@/app/ui/footer';
+import { Suspense } from 'react';
+import Spinner from '@/app/ui/spinner';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -21,13 +23,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="flex flex-1 overflow-hidden">
           {/* Sidebar */}
           {/* <Sidebar organisationID={1} /> */}
-          <Sidebar role={"student"} orgSlug="test-org" />
+          <Sidebar />
 
           {/* Main content with left margin matching sidebar width */}
           <div className="flex-1 flex flex-col ml-16 md:ml-52 transition-all duration-300">
             <main className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50">
               <div className="max-w-7xl mx-auto">
-                {children}
+                <Suspense fallback={<Spinner />}>
+                  {children}
+                </Suspense>
               </div>
             </main>
             

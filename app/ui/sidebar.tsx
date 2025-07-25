@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiChevronLeft, FiChevronRight, FiHome, FiUser, FiFileText } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiHome, FiUser, FiFileText, FiBarChart3 } from "react-icons/fi";
 import { MdLogout } from "react-icons/md";
 import { MdOutlineRequestQuote } from "react-icons/md";
 import Link from 'next/link';
@@ -51,9 +51,25 @@ export default function Sidebar() {
             />
             
             <SidebarLink 
+              href="/main/dashboard" 
+              icon={<FiBarChart3 className="h-5 w-5" />} 
+              label="Tableau de bord" 
+              isOpen={isOpen} 
+              isHovered={isHovered}
+            />
+            
+            <SidebarLink 
+              href="/main/tasks" 
+              icon={<FiFileText className="h-5 w-5" />} 
+              label="Tâches" 
+              isOpen={isOpen} 
+              isHovered={isHovered}
+            />
+            
+            <SidebarLink 
               href="/main/formulaire" 
               icon={<MdOutlineRequestQuote className="h-5 w-5" />} 
-              label="Formulaire" 
+              label="Rapports" 
               isOpen={isOpen} 
               isHovered={isHovered}
             />
@@ -61,7 +77,7 @@ export default function Sidebar() {
             <SidebarLink 
               href="/main/reports" 
               icon={<FiFileText className="h-5 w-5" />} 
-              label="Rapports" 
+              label="Mes rapports" 
               isOpen={isOpen} 
               isHovered={isHovered}
             />
@@ -128,10 +144,10 @@ function SidebarLink({
   const pathname = usePathname();
   let isActive = false;
 
-  if (href === "/main") {
+  if (href === "/main" || href === "/main/dashboard") {
     isActive = pathname === href; // Exact match for /main
   } else {
-    isActive = pathname.startsWith(href) && pathname === href; // Partial match for others, but not exact.
+    isActive = pathname.startsWith(href); // Partial match for others
   }
 
   return (
