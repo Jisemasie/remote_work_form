@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlusIcon, EyeIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
-import DataTable, { Column, Filter } from '@/app/components/DataTable';
+import EnhancedDataTable, { Column, Filter } from '@/app/components/EnhancedDataTable';
 import { searchTasks, deleteTask, updateTaskStatus } from '@/app/lib/task_actions';
 import { exportTasksToExcel, exportToCSV, exportToPDF } from '@/app/lib/export_utils';
 import { getSessionData } from '@/app/lib/session';
 import { Task, SearchParams } from '@/app/lib/definitions';
 import { useToast } from '@/app/hook/useToast';
+import StatusBadge from '@/app/components/StatusBadge';
+import ConfirmDialog from '@/app/components/ConfirmDialog';
 
 export default function TasksPage() {
     const router = useRouter();
@@ -16,6 +18,15 @@ export default function TasksPage() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<any>(null);
+    const [deleteDialog, setDeleteDialog] = useState<{
+        show: boolean;
+        task: Task | null;
+        loading: boolean;
+    }>({
+        show: false,
+        task: null,
+        loading: false
+    });
 
     useEffect(() => {
         const loadTasks = async () => {
@@ -45,6 +56,19 @@ export default function TasksPage() {
         loadTasks();
     }, [error]);
 
+    const refreshTasks = async () => {
+        try {
+            const searchParams: SearchParams = { scope: 'all', value: '' };
+            const userId = userInfo?.issupervisor ? undefined : parseInt(userInfo?.id || '0');
+            const result = await searchTasks(searchParams, userId);
+            if (result) {
+                setTasks(result);
+            }
+        } catch (err) {
+            console.error('Erreur lors du rafraîchissement:', err);
+            error('Erreur lors du rafraîchissement des tâches');
+        }
+    };
     const handleView = (task: Task) => {
         router.push(`/main/tasks/${task.id}/view`);
     };
@@ -54,27 +78,31 @@ export default function TasksPage() {
     };
 
     const handleDelete = async (task: Task) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-            return;
-        }
+        setDeleteDialog({
+            show: true,
+            task,
+            loading: false
+        });
+    };
 
+    const confirmDelete = async () => {
+        if (!deleteDialog.task) return;
+
+        setDeleteDialog(prev => ({ ...prev, loading: true }));
         try {
-            const result = await deleteTask(task.id, parseInt(userInfo?.id || '0'));
+            const result = await deleteTask(deleteDialog.task.id, parseInt(userInfo?.id || '0'));
             if (result.success) {
                 success('Tâche supprimée avec succès');
-                // Reload tasks
-                const searchParams: SearchParams = { scope: 'all', value: '' };
-                const userId = userInfo?.issupervisor ? undefined : parseInt(userInfo?.id || '0');
-                const updatedTasks = await searchTasks(searchParams, userId);
-                if (updatedTasks) {
-                    setTasks(updatedTasks);
-                }
+                await refreshTasks();
+                setDeleteDialog({ show: false, task: null, loading: false });
             } else {
                 error(result.error || 'Erreur lors de la suppression');
+                setDeleteDialog(prev => ({ ...prev, loading: false }));
             }
         } catch (err) {
             console.error('Erreur lors de la suppression:', err);
             error('Erreur lors de la suppression de la tâche');
+            setDeleteDialog(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -83,13 +111,7 @@ export default function TasksPage() {
             const result = await updateTaskStatus(task.id, newStatus, parseInt(userInfo?.id || '0'));
             if (result.success) {
                 success('Statut mis à jour avec succès');
-                // Reload tasks
-                const searchParams: SearchParams = { scope: 'all', value: '' };
-                const userId = userInfo?.issupervisor ? undefined : parseInt(userInfo?.id || '0');
-                const updatedTasks = await searchTasks(searchParams, userId);
-                if (updatedTasks) {
-                    setTasks(updatedTasks);
-                }
+                await refreshTasks();
             } else {
                 error(result.error || 'Erreur lors de la mise à jour');
             }
@@ -157,40 +179,6 @@ export default function TasksPage() {
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        const statusConfig = {
-            'not_started': { label: 'Non commencée', color: 'bg-gray-100 text-gray-800' },
-            'in_progress': { label: 'En cours', color: 'bg-blue-100 text-blue-800' },
-            'completed': { label: 'Terminée', color: 'bg-green-100 text-green-800' },
-            'on_hold': { label: 'En attente', color: 'bg-yellow-100 text-yellow-800' },
-            'cancelled': { label: 'Annulée', color: 'bg-red-100 text-red-800' }
-        };
-
-        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.not_started;
-        
-        return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-                {config.label}
-            </span>
-        );
-    };
-
-    const getPriorityBadge = (priority: string) => {
-        const priorityConfig = {
-            'low': { label: 'Faible', color: 'bg-gray-100 text-gray-800' },
-            'medium': { label: 'Moyenne', color: 'bg-blue-100 text-blue-800' },
-            'high': { label: 'Élevée', color: 'bg-orange-100 text-orange-800' },
-            'urgent': { label: 'Urgente', color: 'bg-red-100 text-red-800' }
-        };
-
-        const config = priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.medium;
-        
-        return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-                {config.label}
-            </span>
-        );
-    };
 
     const columns: Column<Task>[] = [
         {
@@ -218,14 +206,14 @@ export default function TasksPage() {
             key: 'status',
             header: 'Statut',
             sortable: true,
-            render: (value) => getStatusBadge(value),
+            render: (value) => <StatusBadge status={value} type="task" />,
             align: 'center'
         },
         {
             key: 'priority',
             header: 'Priorité',
             sortable: true,
-            render: (value) => getPriorityBadge(value),
+            render: (value) => <StatusBadge status={value} type="priority" />,
             align: 'center'
         },
         {
@@ -332,6 +320,19 @@ export default function TasksPage() {
         }
     ];
 
+    const bulkActions = [
+        {
+            label: 'Marquer comme terminées',
+            onClick: async (selectedTasks: Task[]) => {
+                for (const task of selectedTasks) {
+                    if (task.status !== 'completed') {
+                        await handleStatusChange(task, 'completed');
+                    }
+                }
+            },
+            className: 'bg-green-600 hover:bg-green-700 text-white'
+        }
+    ];
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
@@ -361,10 +362,11 @@ export default function TasksPage() {
 
             {/* Content */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <DataTable
+                <EnhancedDataTable
                     data={tasks}
                     columns={columns}
                     keyField="id"
+                    title="Liste des tâches"
                     loading={loading}
                     searchable={true}
                     sortable={true}
@@ -377,11 +379,28 @@ export default function TasksPage() {
                     onExport={handleExport}
                     filters={filters}
                     actions={actions}
+                    bulkActions={bulkActions}
+                    selectable={true}
+                    refreshData={refreshTasks}
+                    showRefresh={true}
                     emptyMessage="Aucune tâche trouvée"
                     className="shadow-lg"
                     rowClassName={(task) => task.is_overdue ? 'bg-red-50' : ''}
                 />
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={deleteDialog.show}
+                onClose={() => setDeleteDialog({ show: false, task: null, loading: false })}
+                onConfirm={confirmDelete}
+                title="Supprimer la tâche"
+                message={`Êtes-vous sûr de vouloir supprimer la tâche "${deleteDialog.task?.task_name}" ? Cette action est irréversible.`}
+                confirmText="Supprimer"
+                cancelText="Annuler"
+                type="danger"
+                loading={deleteDialog.loading}
+            />
         </div>
     );
 }

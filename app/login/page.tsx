@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { getUserLoginDetails } from '@/app/lib/user_actions'
 import { useActionState } from 'react';
-import { authenticate } from '@/app/lib/auth_action';
+import { authenticateWithSecurity } from '@/app/lib/enhanced_auth_actions';
 import { useTransition } from 'react';
 import { LoginData } from "../lib/definitions";
 
@@ -20,7 +20,7 @@ const Login = () => {
   console.log("Getting callback: ", callbackUrl)
 
   const [errorMessage, formAction] = useActionState(
-    authenticate,
+    authenticateWithSecurity,
     undefined,
   );
 
@@ -28,6 +28,7 @@ const Login = () => {
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
+  const [loginAttempts, setLoginAttempts] = useState(0);
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = event.target;
@@ -67,15 +68,17 @@ const Login = () => {
         startTransition(() => {
           formAction(data);
         });
-        setError("Error: ")
+        setLoginAttempts(prev => prev + 1);
 
       } else {
         setError("Erreur de connexion")
         console.log("user inexistant!")
+        setLoginAttempts(prev => prev + 1);
       }
     } catch (error) {
       console.error("Login error:", error, String(errorMessage));
       setError(String(errorMessage));
+      setLoginAttempts(prev => prev + 1);
     }
   };
 
@@ -127,6 +130,16 @@ const Login = () => {
             </div>
           )}
 
+          {loginAttempts >= 3 && (
+            <div className="p-3 bg-yellow-100 text-yellow-700 rounded-md text-sm">
+              <div className="flex items-center">
+                <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                Attention: Plusieurs tentatives de connexion échouées. Votre compte sera verrouillé après 5 tentatives.
+              </div>
+            </div>
+          )}
           {/* Username field with floating label */}
           <div className="relative w-full">
             <input
@@ -160,7 +173,7 @@ const Login = () => {
               value={formData.password}
               onChange={handleChange}
               required
-              minLength={4}
+              minLength={8}
               maxLength={50}
               autoComplete="current-password"
               className="peer w-full px-4 pt-5 pb-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 text-black"
@@ -185,6 +198,36 @@ const Login = () => {
             </button>
           </div>
 
+          {/* Password strength indicator */}
+          {formData.password && (
+            <div className="space-y-2">
+              <div className="text-xs text-gray-600">Force du mot de passe:</div>
+              <div className="flex space-x-1">
+                {[1, 2, 3, 4].map((level) => {
+                  const strength = getPasswordStrength(formData.password);
+                  return (
+                    <div
+                      key={level}
+                      className={`h-1 flex-1 rounded ${
+                        strength >= level
+                          ? strength === 1
+                            ? 'bg-red-500'
+                            : strength === 2
+                            ? 'bg-yellow-500'
+                            : strength === 3
+                            ? 'bg-blue-500'
+                            : 'bg-green-500'
+                          : 'bg-gray-200'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+              <div className="text-xs text-gray-500">
+                {getPasswordStrengthText(getPasswordStrength(formData.password))}
+              </div>
+            </div>
+          )}
           <div className="flex justify-end">
             <Link
               href="/page/users/password/reset"
@@ -223,4 +266,30 @@ const Login = () => {
   );
 };
 
+// Helper functions for password strength
+function getPasswordStrength(password: string): number {
+  let strength = 0;
+  if (password.length >= 8) strength++;
+  if (/[A-Z]/.test(password)) strength++;
+  if (/[a-z]/.test(password)) strength++;
+  if (/[0-9]/.test(password)) strength++;
+  if (/[^A-Za-z0-9]/.test(password)) strength++;
+  return Math.min(strength, 4);
+}
+
+function getPasswordStrengthText(strength: number): string {
+  switch (strength) {
+    case 0:
+    case 1:
+      return 'Très faible';
+    case 2:
+      return 'Faible';
+    case 3:
+      return 'Moyenne';
+    case 4:
+      return 'Forte';
+    default:
+      return '';
+  }
+}
 export default Login;

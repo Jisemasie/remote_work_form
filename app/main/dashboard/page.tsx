@@ -10,11 +10,13 @@ import {
     UserGroupIcon,
     DocumentTextIcon,
     TrendingUpIcon,
-    CalendarDaysIcon
+    CalendarDaysIcon,
+    PlusIcon
 } from '@heroicons/react/24/outline';
 import { getDashboardStats } from '@/app/lib/task_actions';
 import { getSessionData } from '@/app/lib/session';
 import { DashboardStats } from '@/app/lib/definitions';
+import LoadingSpinner from '@/app/components/LoadingSpinner';
 
 interface StatCard {
     title: string;
@@ -25,6 +27,7 @@ interface StatCard {
         value: number;
         isPositive: boolean;
     };
+    onClick?: () => void;
 }
 
 export default function DashboardPage() {
@@ -32,6 +35,7 @@ export default function DashboardPage() {
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [userInfo, setUserInfo] = useState<any>(null);
+    const [refreshing, setRefreshing] = useState(false);
 
     useEffect(() => {
         const loadDashboardData = async () => {
@@ -54,6 +58,20 @@ export default function DashboardPage() {
         loadDashboardData();
     }, []);
 
+    const refreshDashboard = async () => {
+        setRefreshing(true);
+        try {
+            if (userInfo?.id) {
+                const isSupervisor = userInfo.issupervisor === true || userInfo.issupervisor === 1;
+                const dashboardStats = await getDashboardStats(parseInt(userInfo.id), isSupervisor);
+                setStats(dashboardStats);
+            }
+        } catch (error) {
+            console.error('Erreur lors du rafraîchissement:', error);
+        } finally {
+            setRefreshing(false);
+        }
+    };
     const getStatCards = (): StatCard[] => {
         if (!stats) return [];
 
@@ -70,6 +88,7 @@ export default function DashboardPage() {
                     value: 12,
                     isPositive: true
                 }
+                onClick: () => router.push('/main/tasks')
             },
             {
                 title: 'Tâches terminées',
@@ -80,6 +99,7 @@ export default function DashboardPage() {
                     value: 8,
                     isPositive: true
                 }
+                onClick: () => router.push('/main/tasks?status=completed')
             },
             {
                 title: 'Tâches en cours',
@@ -90,6 +110,7 @@ export default function DashboardPage() {
                     value: 3,
                     isPositive: false
                 }
+                onClick: () => router.push('/main/tasks?status=in_progress')
             },
             {
                 title: 'Tâches en retard',
@@ -100,6 +121,7 @@ export default function DashboardPage() {
                     value: 15,
                     isPositive: false
                 }
+                onClick: () => router.push('/main/tasks?overdue=true')
             },
             {
                 title: 'Rapports soumis',
@@ -110,12 +132,14 @@ export default function DashboardPage() {
                     value: 5,
                     isPositive: true
                 }
+                onClick: () => router.push('/main/reports')
             },
             {
                 title: 'En attente de révision',
                 value: stats.pendingReviews,
                 icon: <CalendarDaysIcon className="h-8 w-8" />,
-                color: 'bg-orange-500'
+                color: 'bg-orange-500',
+                onClick: () => router.push('/main/reports?status=submitted')
             },
             {
                 title: 'Taux de completion',
@@ -131,7 +155,8 @@ export default function DashboardPage() {
                 title: 'Membres de l\'équipe',
                 value: stats.teamMembers || 0,
                 icon: <UserGroupIcon className="h-8 w-8" />,
-                color: 'bg-teal-500'
+                color: 'bg-teal-500',
+                onClick: () => router.push('/main/users')
             }] : [])
         ];
     };
@@ -139,7 +164,7 @@ export default function DashboardPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <LoadingSpinner size="lg" text="Chargement du tableau de bord..." />
             </div>
         );
     }
@@ -167,6 +192,20 @@ export default function DashboardPage() {
                         </div>
                         <div className="mt-4 flex md:mt-0 md:ml-4">
                             <button
+                                onClick={refreshDashboard}
+                                disabled={refreshing}
+                                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
+                            >
+                                {refreshing ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                                ) : (
+                                    <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                )}
+                                Actualiser
+                            </button>
+                            <button
                                 onClick={() => router.push('/main/tasks')}
                                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                             >
@@ -189,7 +228,10 @@ export default function DashboardPage() {
                     {statCards.map((card, index) => (
                         <div
                             key={index}
-                            className="bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition-shadow duration-300"
+                            className={`bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition-all duration-300 ${
+                                card.onClick ? 'cursor-pointer hover:scale-105' : ''
+                            }`}
+                            onClick={card.onClick}
                         >
                             <div className="p-6">
                                 <div className="flex items-center">
@@ -237,7 +279,7 @@ export default function DashboardPage() {
                                 onClick={() => router.push('/main/formulaire/0/edit?action=add')}
                                 className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                             >
-                                <DocumentTextIcon className="h-8 w-8 text-blue-600 mr-3" />
+                                <PlusIcon className="h-8 w-8 text-blue-600 mr-3" />
                                 <div className="text-left">
                                     <p className="text-sm font-medium text-gray-900">Nouveau rapport</p>
                                     <p className="text-sm text-gray-500">Créer un rapport quotidien</p>
@@ -264,6 +306,19 @@ export default function DashboardPage() {
                                     <div className="text-left">
                                         <p className="text-sm font-medium text-gray-900">Révisions en attente</p>
                                         <p className="text-sm text-gray-500">Rapports à réviser</p>
+                                    </div>
+                                </button>
+                            )}
+
+                            {userInfo?.issupervisor && (
+                                <button
+                                    onClick={() => router.push('/main/users')}
+                                    className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                                >
+                                    <UserGroupIcon className="h-8 w-8 text-purple-600 mr-3" />
+                                    <div className="text-left">
+                                        <p className="text-sm font-medium text-gray-900">Gestion des utilisateurs</p>
+                                        <p className="text-sm text-gray-500">Gérer les comptes utilisateurs</p>
                                     </div>
                                 </button>
                             )}

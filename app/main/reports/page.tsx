@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { PlusIcon, EyeIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
-import DataTable, { Column, Filter } from '@/app/components/DataTable';
+import EnhancedDataTable, { Column, Filter } from '@/app/components/EnhancedDataTable';
 import { searchDailyReports, reviewDailyReport } from '@/app/lib/task_actions';
 import { exportReportsToExcel, exportToCSV, exportToPDF } from '@/app/lib/export_utils';
 import { getSessionData } from '@/app/lib/session';
 import { DailyReport, SearchParams } from '@/app/lib/definitions';
 import { useToast } from '@/app/hook/useToast';
+import StatusBadge from '@/app/components/StatusBadge';
 
 export default function ReportsPage() {
     const router = useRouter();
@@ -23,12 +24,14 @@ export default function ReportsPage() {
         status: 'approved' | 'rejected';
         comments: string;
         rating: number;
+        loading: boolean;
     }>({
         show: false,
         report: null,
         status: 'approved',
         comments: '',
-        rating: 5
+        rating: 5,
+        loading: false
     });
 
     useEffect(() => {
@@ -68,6 +71,26 @@ export default function ReportsPage() {
         loadReports();
     }, [error, searchParams]);
 
+    const refreshReports = async () => {
+        try {
+            const params: SearchParams = { scope: 'all', value: '' };
+            const statusFilter = searchParams.get('status');
+            if (statusFilter) {
+                params.scope = 'status';
+                params.value = statusFilter;
+            }
+            
+            const userId = parseInt(userInfo?.id || '0');
+            const isSupervisor = userInfo?.issupervisor === true || userInfo?.issupervisor === 1;
+            const result = await searchDailyReports(params, userId, isSupervisor);
+            if (result) {
+                setReports(result);
+            }
+        } catch (err) {
+            console.error('Erreur lors du rafraîchissement:', err);
+            error('Erreur lors du rafraîchissement des rapports');
+        }
+    };
     const handleView = (report: DailyReport) => {
         router.push(`/main/reports/${report.id}/view`);
     };
@@ -82,13 +105,15 @@ export default function ReportsPage() {
             report,
             status,
             comments: '',
-            rating: 5
+            rating: 5,
+            loading: false
         });
     };
 
     const submitReview = async () => {
         if (!reviewModal.report || !userInfo?.id) return;
 
+        setReviewModal(prev => ({ ...prev, loading: true }));
         try {
             const result = await reviewDailyReport(
                 reviewModal.report.id,
@@ -100,22 +125,17 @@ export default function ReportsPage() {
 
             if (result.success) {
                 success(`Rapport ${reviewModal.status === 'approved' ? 'approuvé' : 'rejeté'} avec succès`);
-                setReviewModal({ show: false, report: null, status: 'approved', comments: '', rating: 5 });
+                setReviewModal({ show: false, report: null, status: 'approved', comments: '', rating: 5, loading: false });
                 
-                // Reload reports
-                const params: SearchParams = { scope: 'all', value: '' };
-                const userId = parseInt(userInfo.id);
-                const isSupervisor = userInfo?.issupervisor === true || userInfo?.issupervisor === 1;
-                const updatedReports = await searchDailyReports(params, userId, isSupervisor);
-                if (updatedReports) {
-                    setReports(updatedReports);
-                }
+                await refreshReports();
             } else {
                 error(result.error || 'Erreur lors de la révision');
+                setReviewModal(prev => ({ ...prev, loading: false }));
             }
         } catch (err) {
             console.error('Erreur lors de la révision:', err);
             error('Erreur lors de la révision du rapport');
+            setReviewModal(prev => ({ ...prev, loading: false }));
         }
     };
 
@@ -177,23 +197,6 @@ export default function ReportsPage() {
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        const statusConfig = {
-            'draft': { label: 'Brouillon', color: 'bg-gray-100 text-gray-800' },
-            'submitted': { label: 'Soumis', color: 'bg-blue-100 text-blue-800' },
-            'reviewed': { label: 'En révision', color: 'bg-yellow-100 text-yellow-800' },
-            'approved': { label: 'Approuvé', color: 'bg-green-100 text-green-800' },
-            'rejected': { label: 'Rejeté', color: 'bg-red-100 text-red-800' }
-        };
-
-        const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
-        
-        return (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${config.color}`}>
-                {config.label}
-            </span>
-        );
-    };
 
     const getRatingStars = (rating: number | null) => {
         if (!rating) return <span className="text-gray-400">-</span>;
@@ -238,7 +241,7 @@ export default function ReportsPage() {
             key: 'status',
             header: 'Statut',
             sortable: true,
-            render: (value) => getStatusBadge(value),
+            render: (value) => <StatusBadge status={value} type="report" />,
             align: 'center'
         },
         {
@@ -314,6 +317,22 @@ export default function ReportsPage() {
         ] : [])
     ];
 
+    const bulkActions = userInfo?.issupervisor ? [
+        {
+            label: 'Approuver sélectionnés',
+            icon: <CheckCircleIcon className="h-4 w-4" />,
+            onClick: async (selectedReports: DailyReport[]) => {
+                for (const report of selectedReports) {
+                    if (report.status === 'submitted') {
+                        await reviewDailyReport(report.id, parseInt(userInfo.id), 'approved', 'Approbation en lot', 5);
+                    }
+                }
+                success('Rapports approuvés avec succès');
+                await refreshReports();
+            },
+            className: 'bg-green-600 hover:bg-green-700 text-white'
+        }
+    ] : [];
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Header */}
@@ -346,10 +365,11 @@ export default function ReportsPage() {
 
             {/* Content */}
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <DataTable
+                <EnhancedDataTable
                     data={reports}
                     columns={columns}
                     keyField="id"
+                    title="Liste des rapports"
                     loading={loading}
                     searchable={true}
                     sortable={true}
@@ -361,6 +381,10 @@ export default function ReportsPage() {
                     onExport={handleExport}
                     filters={filters}
                     actions={actions}
+                    bulkActions={bulkActions}
+                    selectable={userInfo?.issupervisor}
+                    refreshData={refreshReports}
+                    showRefresh={true}
                     emptyMessage="Aucun rapport trouvé"
                     className="shadow-lg"
                 />
@@ -383,10 +407,11 @@ export default function ReportsPage() {
                                     {[1, 2, 3, 4, 5].map((star) => (
                                         <button
                                             key={star}
+                                            disabled={reviewModal.loading}
                                             onClick={() => setReviewModal(prev => ({ ...prev, rating: star }))}
                                             className={`h-6 w-6 ${
                                                 star <= reviewModal.rating ? 'text-yellow-400' : 'text-gray-300'
-                                            } hover:text-yellow-400 transition-colors`}
+                                            } hover:text-yellow-400 transition-colors disabled:opacity-50`}
                                         >
                                             <svg fill="currentColor" viewBox="0 0 20 20">
                                                 <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
@@ -402,29 +427,39 @@ export default function ReportsPage() {
                                 </label>
                                 <textarea
                                     value={reviewModal.comments}
+                                    disabled={reviewModal.loading}
                                     onChange={(e) => setReviewModal(prev => ({ ...prev, comments: e.target.value }))}
                                     rows={4}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 disabled:opacity-50"
                                     placeholder="Ajoutez vos commentaires..."
                                 />
                             </div>
 
                             <div className="flex justify-end space-x-3">
                                 <button
-                                    onClick={() => setReviewModal({ show: false, report: null, status: 'approved', comments: '', rating: 5 })}
-                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                                    onClick={() => setReviewModal({ show: false, report: null, status: 'approved', comments: '', rating: 5, loading: false })}
+                                    disabled={reviewModal.loading}
+                                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50"
                                 >
                                     Annuler
                                 </button>
                                 <button
                                     onClick={submitReview}
+                                    disabled={reviewModal.loading}
                                     className={`px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
                                         reviewModal.status === 'approved'
                                             ? 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
                                             : 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                                    }`}
+                                    } disabled:opacity-50`}
                                 >
-                                    {reviewModal.status === 'approved' ? 'Approuver' : 'Rejeter'}
+                                    {reviewModal.loading ? (
+                                        <div className="flex items-center">
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                            Traitement...
+                                        </div>
+                                    ) : (
+                                        reviewModal.status === 'approved' ? 'Approuver' : 'Rejeter'
+                                    )}
                                 </button>
                             </div>
                         </div>
