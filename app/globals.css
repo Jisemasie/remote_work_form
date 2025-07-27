@@ -28,16 +28,17 @@ body {
 
 .input {
   @apply w-full px-4 py-3 border border-gray-300 rounded-lg shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition duration-200 ease-in-out;
-  background-color: #f9f9f9; /* Light background for better contrast */
+  background-color: #ffffff; /* White background for better visibility */
   font-size: 1rem; /* Slightly larger font size for readability */
-  color: #333; /* Darker text color for better visibility */
+  color: #1f2937; /* Darker text color for better visibility */
 }
 
 .input::placeholder {
-  color: #999; /* Lighter placeholder text */
+  color: #6b7280; /* Lighter placeholder text */
 }
 
 .input:focus {
   background-color: #fff; /* Change background on focus for better user feedback */
+  color: #1f2937; /* Ensure text remains visible on focus */
 }
 

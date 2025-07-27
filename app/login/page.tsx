@@ -150,7 +150,7 @@ const Login = () => {
               onChange={handleChange}
               required
               autoComplete="username"
-              className="peer w-full px-4 pt-5 pb-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black"
+              className="peer w-full px-4 pt-5 pb-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               placeholder=" " // <-- espace pour activer le floating label sans texte visible
             />
             <label
@@ -176,7 +176,7 @@ const Login = () => {
               minLength={8}
               maxLength={50}
               autoComplete="current-password"
-              className="peer w-full px-4 pt-5 pb-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 text-black"
+              className="peer w-full px-4 pt-5 pb-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 text-gray-900"
               placeholder=" "
             />
             <label

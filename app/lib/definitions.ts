@@ -1,12 +1,13 @@
 export type LoginResultEnum = 'SUCCESS' | 'FAILURE' ; 
 
 export type LoginData = {
-    id : number | null; 
+    id_user : number | null; 
     username : string | null; 
     status : string | null; 
     create_dt : string | null; 
     fullname : string | null;
-    profile_name : string | null; 
+    profileid : number | null;
+    profile_name : string | null;
     email : string | null; 
     phone : string | null; 
     locked : number | null; 
@@ -16,6 +17,10 @@ export type LoginData = {
     created_by : number,
     password : string | null;
     auth_type: string;
+    id_organisation : number | null;
+    nom_organisation : string | null;
+    id_ecole : number | null;
+    access_level : string | null;
     registration_number: string | null;
     position: string | null;
     superviseur: string | null;
@@ -24,7 +29,7 @@ export type LoginData = {
 };
 
 export interface CreateUpdateUser{
-    id_user_profile: number;
+    profileid: number;
     fullname: string;
     status: string;
     password: string | null;
@@ -35,11 +40,13 @@ export interface CreateUpdateUser{
     locked: number;
     version: string;
     created_by: number;
-    id: number;
+    id_user: number;
     use_mfa: number | null;
     create_dt: Date;  
     expiry_date: Date | null;
     user_must_change_pwd: number;
+    id_organisation: number;
+    id_ecole: number;
     branch: string;
     access_level: string;
     registration_number: string | null;
@@ -52,15 +59,39 @@ export interface User extends CreateUpdateUser {
     update_dt: Date | null;
     user_must_change_pwd: number;
     failed_login_count: number | null;
-    user_group: string
+    profile_name: string;
 }
 
-export interface UserProfile {
-    id: number;
+export interface Profile {
+    profileid: number;
     profile_name: string | null;
     created_by: number;
     status: string | null;
-    date_modification: Date;
+    create_dt: Date;
+    update_dt: Date | null;
+}
+
+export interface Organisation {
+    id_organisation: number;
+    nom_organisation: string;
+    adresse: string | null;
+    telephone: string | null;
+    email: string | null;
+    status: string;
+    create_dt: Date;
+    update_dt: Date | null;
+}
+
+export interface Ecole {
+    id_ecole: number;
+    nom_ecole: string;
+    id_organisation: number;
+    adresse: string | null;
+    telephone: string | null;
+    email: string | null;
+    status: string;
+    create_dt: Date;
+    update_dt: Date | null;
 }
 
 export interface LoginResult {

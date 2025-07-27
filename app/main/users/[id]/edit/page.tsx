@@ -25,23 +25,25 @@ export default function UserEdit() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [profileList, setProfileList] = useState<SelectList[] | null>([]);
-  const [branchList, setBranchList] = useState<SelectList[] | null>([]);
+  const [organisationList, setOrganisationList] = useState<SelectList[] | null>([]);
+  const [ecoleList, setEcoleList] = useState<SelectList[] | null>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [formData, setFormData] = useState<CreateUpdateUser>({
-    id: 0,
+    id_user: 0,
     username: '',
     fullname: '',
     phone: '',
     status: 'A',
     password: '',
     auth_type: 'ad',
-    id_user_profile: 0,
+    profileid: 0,
     email: '',
     locked: 0,
     version: '',
     created_by: 0,
     use_mfa: 0,
-    branch: '',
+    id_organisation: 0,
+    id_ecole: 0,
     access_level: 'branch',
     user_must_change_pwd: 1,
     create_dt: new Date(),
@@ -79,22 +81,29 @@ export default function UserEdit() {
                   value: String(id)
               };
             const user = await searchUser(i_params);
-            console.log("User: ", user)
             if (user) {
               user[0].password = '';
               setFormData(user[0]);
+              
+              // Load ecoles for the selected organisation
+              if (user[0].id_organisation) {
+                const ecoles = await getEcoleList(user[0].id_organisation);
+                setEcoleList(ecoles);
+              }
             }
         }
 
         //profile list
         const profileList = await getUserProfileList()
-        console.log("profileList: ", profileList)
         setProfileList(profileList);
 
-        //branch list
-        const branchList = await getBranchList()
-        console.log("branchList: ", branchList)
-        setBranchList(branchList);
+        //organisation list
+        const organisationList = await getOrganisationList()
+        setOrganisationList(organisationList);
+        
+        //ecole list (all if no specific organisation)
+        const ecoleList = await getEcoleList()
+        setEcoleList(ecoleList);
 
         //get userId from session storage
         const userId = sessionStorage.getItem("userId");
@@ -130,6 +139,17 @@ export default function UserEdit() {
         return { ...prev, [name]: value };
       }
     });
+    
+    // Load ecoles when organisation changes
+    if (name === 'id_organisation') {
+      const loadEcoles = async () => {
+        const ecoles = await getEcoleList(parseInt(value));
+        setEcoleList(ecoles);
+        // Reset ecole selection when organisation changes
+        setFormData(prev => ({ ...prev, id_ecole: 0 }));
+      };
+      loadEcoles();
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -141,7 +161,6 @@ export default function UserEdit() {
     //check if password and confirm password match
     if (pwdConfRef.current) {
       const value = pwdConfRef.current.value;
-      console.log('Input value:', value);
 
       if(value != formData.password){
         error('Mot de passe et confirmation ne matchent pas!');
@@ -151,7 +170,6 @@ export default function UserEdit() {
     }
 
     try {
-      console.log("Creating or updating with form data: ", formData);
       if (action === 'update') {
         const result = await createorUpdateUser(formData);
         if(result){
@@ -169,7 +187,7 @@ export default function UserEdit() {
         const result = await createorUpdateUser(formData);
         if(result){
           success('Enregistré avec succès!');
-          router.replace(`/main/users/${(result[0] as CreateUpdateResult).id}/edit?action=update`)
+          router.replace(`/main/users/${(result[0] as CreateUpdateResult).id_user}/edit?action=update`)
         }
         else {
           error("Erreur lors de l'enregistrement");
@@ -279,13 +297,14 @@ export default function UserEdit() {
                   required
                   className="input"
                 >
-                  <option value="branch">Branche</option>
+                  <option value="ecole">École</option>
+                  <option value="organisation">Organisation</option>
                   <option value="all">Tout</option>
                 </select>
               </div>
 
               {/*  id */}
-              <input type='hidden' name='id' id='id' value={String(formData.id)}/>
+              <input type='hidden' name='id_user' id='id_user' value={String(formData.id_user)}/>
 
               {/* version*/}
               <input type='hidden' name='version' id='version' value={formData.version}/>
@@ -293,22 +312,32 @@ export default function UserEdit() {
                {/* created_by */}
               <input type='hidden' name='created_by' id='created_by' value={currentUserId}/>
 
-              {/* user profile */}
+              {/* Organisation */}
               <SelectWrapper
-                label="Branche"
-                name="branch"
+                label="Organisation *"
+                name="id_organisation"
                 isDisabled={false}
-                value={String(formData.branch)}
-                options={branchList}
+                value={String(formData.id_organisation)}
+                options={organisationList}
+                onChange={handleChange}
+              />
+              
+              {/* École */}
+              <SelectWrapper
+                label="École"
+                name="id_ecole"
+                isDisabled={false}
+                value={String(formData.id_ecole)}
+                options={ecoleList}
                 onChange={handleChange}
               />
 
               {/* user profile */}
               <SelectWrapper
                 label="Profil"
-                name="id_user_profile"
+                name="profileid"
                 isDisabled={false}
-                value={String(formData.id_user_profile)}
+                value={String(formData.profileid)}
                 options={profileList}
                 onChange={handleChange}
               />

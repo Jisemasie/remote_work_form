@@ -10,7 +10,6 @@ import { signOut } from '@/auth';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
-  const [isHovered, setIsHovered] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -34,8 +33,6 @@ export default function Sidebar() {
     <aside
       className={sidebarClasses}
       style={{ top: '64px' }} // Matches header height
-      onMouseEnter={() => !isMobile && setIsHovered(true)}
-      onMouseLeave={() => !isMobile && setIsHovered(false)}
     >
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto py-2">
@@ -47,7 +44,6 @@ export default function Sidebar() {
               icon={<FiHome className="h-5 w-5" />} 
               label="Accueil" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
             
             <SidebarLink 
@@ -55,7 +51,6 @@ export default function Sidebar() {
               icon={<FiBarChart3 className="h-5 w-5" />} 
               label="Tableau de bord" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
             
             <SidebarLink 
@@ -63,7 +58,6 @@ export default function Sidebar() {
               icon={<FiFileText className="h-5 w-5" />} 
               label="Tâches" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
             
             <SidebarLink 
@@ -71,7 +65,6 @@ export default function Sidebar() {
               icon={<MdOutlineRequestQuote className="h-5 w-5" />} 
               label="Rapports" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
 
             <SidebarLink 
@@ -79,7 +72,6 @@ export default function Sidebar() {
               icon={<FiFileText className="h-5 w-5" />} 
               label="Mes rapports" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
 
             <SidebarLink 
@@ -87,7 +79,6 @@ export default function Sidebar() {
               icon={<FiUser className="h-5 w-5" />} 
               label="Utilisateurs" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
 
             <SidebarLink 
@@ -99,7 +90,6 @@ export default function Sidebar() {
               icon={<MdLogout className="h-5 w-5" />} 
               label="Déconnexion" 
               isOpen={isOpen} 
-              isHovered={isHovered}
             />
 
 
@@ -130,17 +120,14 @@ function SidebarLink({
   icon,
   label,
   isOpen,
-  isHovered,
   onClick
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
   isOpen: boolean;
-  isHovered: boolean;
   onClick?: React.MouseEventHandler<HTMLAnchorElement>;
 }) {
-  const showTooltip = !isOpen && isHovered;
   const pathname = usePathname();
   let isActive = false;
 
@@ -154,19 +141,18 @@ function SidebarLink({
     <li>
       <Link
         href={href}
-        className={`flex items-center space-x-3 rounded-md p-2 transition-colors duration-200 ${
+        className={`relative flex items-center space-x-3 rounded-md p-2 transition-colors duration-200 ${
           isOpen ? "justify-start" : "justify-center"
         } ${isActive ? "bg-sky-600" : "hover:bg-blue-800"}`}
         onClick={onClick}
         tabIndex={0}
+        title={!isOpen ? label : undefined}
       >
         <span className="flex-shrink-0">
           {icon}
         </span>
-        {(isOpen || showTooltip) && (
-          <span className={`text-sm font-medium ${
-            isOpen ? "opacity-100" : "absolute left-full ml-2 px-2 py-1 bg-blue-800 rounded-md text-white whitespace-nowrap opacity-0 transition-opacity duration-200"
-          } ${showTooltip ? "opacity-100" : ""}`}>
+        {isOpen && (
+          <span className="text-sm font-medium opacity-100">
             {label}
           </span>
         )}

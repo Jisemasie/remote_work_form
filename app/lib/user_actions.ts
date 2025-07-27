@@ -5,12 +5,19 @@ import {cryptPassword} from '@/app/lib/pwd_util';
 import { SearchParams, InputParam, SelectList } from './definitions';    
 import { CreateUpdateUser } from './definitions';
 
+// Import the new functions
+import { getOrganisationList, getEcoleList } from './user_actions';
+
+// Export them for use in components
+export { getOrganisationList, getEcoleList };
+
 // Get a user profile list
 export async function getUserProfileList(): Promise<SelectList[] | null>  {  
     try {  
         const result = await executeDataRequest(`
-            SELECT id AS [key], profile_name AS [value]
-            FROM user_profiles
+            SELECT profileid AS [key], profile_name AS [value]
+            FROM profiles
+            WHERE status = 'A'
             ORDER BY profile_name
         `, [], false);
         return result || null;     
@@ -20,13 +27,14 @@ export async function getUserProfileList(): Promise<SelectList[] | null>  {
     }  
 }
 
-// Get  branch list
-export async function getBranchList(): Promise<SelectList[] | null> {  
+// Get organisation list
+export async function getOrganisationList(): Promise<SelectList[] | null> {  
     try {  
         const result = await executeDataRequest(`
-            SELECT [nom] AS [key], [nom] AS [value]
-            FROM [dbo].[branch]
-            ORDER BY [nom]
+            SELECT id_organisation AS [key], nom_organisation AS [value]
+            FROM organisations
+            WHERE status = 'A'
+            ORDER BY nom_organisation
         `, [], false);
         return result || null;     
     } catch (error) {   
@@ -35,13 +43,19 @@ export async function getBranchList(): Promise<SelectList[] | null> {
     }  
 }
 
-// Get  department list
-export async function getDepartmentList(): Promise<SelectList[] | null>  {  
+// Get ecole list by organisation
+export async function getEcoleList(organisationId?: number): Promise<SelectList[] | null>  {  
     try {  
+        let whereClause = "WHERE status = 'A'";
+        if (organisationId) {
+            whereClause += ` AND id_organisation = ${organisationId}`;
+        }
+        
         const result = await executeDataRequest(`
-            SELECT [nom] AS [key], [nom] AS [value]
-            FROM [dbo].[departements]
-            ORDER BY [nom]
+            SELECT id_ecole AS [key], nom_ecole AS [value]
+            FROM ecoles
+            ${whereClause}
+            ORDER BY nom_ecole
         `, [], false);
         return result || null;     
     } catch (error) {   
@@ -53,11 +67,11 @@ export async function getDepartmentList(): Promise<SelectList[] | null>  {
 // Get a user list
 export async function getUserList(): Promise<SelectList[] | null>  {  
     try {
-        const queryStr = `SELECT id as [key], fullname as [value]
+        const queryStr = `SELECT id_user as [key], fullname as [value]
             FROM users
+            WHERE status = 'A'
             ORDER BY fullname ASC`;
         const result = await executeDataRequest(queryStr, [], false);
-        console.log('User search result: ', result);
         return result;
     } catch (error) {    
         console.log(error);  
@@ -75,19 +89,19 @@ export async function searchUser(i_params: SearchParams) {
         if (scope === 'user_or_name') queryCondition += ` AND (a.username LIKE '%${search_value}%' OR a.fullname LIKE '%${search_value}%')`;
         if (scope === 'username') queryCondition += ` AND a.username LIKE '%${search_value}'`;
         if (scope === 'name') queryCondition += ` AND a.fullname LIKE '%${search_value}%'`;
-        if (scope === 'userid') queryCondition += ` AND a.id = ${search_value}`;
-        if (scope === 'branch') queryCondition += ` AND a.branch = ${search_value}`;
+        if (scope === 'userid') queryCondition += ` AND a.id_user = ${search_value}`;
+        if (scope === 'organisation') queryCondition += ` AND a.id_organisation = ${search_value}`;
         if (scope === 'all') queryCondition = 'WHERE 1 = 1';
         
         const queryStr = `
         SELECT 
-            b.profile_name AS user_group
-            ,a.[id]
+            b.profile_name
+            ,a.[id_user]
             ,a.[username]
             ,a.[status]
             ,CONVERT(VARCHAR(33), a.[create_dt], 126) [create_dt]
             ,a.[fullname]
-            ,a.[id_user_profile]
+            ,a.[profileid]
             ,a.[email]
             ,a.[phone]
             ,a.[locked]
@@ -97,19 +111,23 @@ export async function searchUser(i_params: SearchParams) {
             ,a.[auth_type]
             ,a.[password]
             ,a.[user_must_change_pwd]
-            ,a.[branch]
+            ,a.[id_organisation]
+            ,a.[id_ecole]
             ,a.[access_level]
             ,a.[use_mfa]
             ,a.registration_number
             ,a.position
             ,a.issupervisor
             ,isnull(c.fullname, '') superviseur
+            ,o.nom_organisation
+            ,e.nom_ecole
         FROM users a
-        JOIN user_profiles b ON a.id_user_profile = b.id
-        LEFT JOIN users c ON a.superviseur = c.id
+        JOIN profiles b ON a.profileid = b.profileid
+        LEFT JOIN users c ON a.superviseur = c.id_user
+        LEFT JOIN organisations o ON a.id_organisation = o.id_organisation
+        LEFT JOIN ecoles e ON a.id_ecole = e.id_ecole
         ${queryCondition}`;
         const result = await executeDataRequest(queryStr, [], false);
-        //console.log('User search result: ', result);
         return result;
     } catch (error) {    
         console.log(error);  
@@ -119,7 +137,6 @@ export async function searchUser(i_params: SearchParams) {
 
 // Create or update a user
 export async function createorUpdateUser(user: CreateUpdateUser) {  
-    console.log("Calling createorUpdateUser: ", user)
     try { 
 
         let hash = '';
@@ -129,7 +146,7 @@ export async function createorUpdateUser(user: CreateUpdateUser) {
         user.password = hash;
 
         //delete not needed fields
-        const excludedFields = ['user_group', 'create_dt', 'branch_name'];
+        const excludedFields = ['profile_name', 'create_dt', 'nom_organisation', 'nom_ecole'];
 
         const inputParam: InputParam[] = [];
         Object.entries(user).forEach(([key, value]) => {
@@ -142,7 +159,6 @@ export async function createorUpdateUser(user: CreateUpdateUser) {
         });
 
         const result = await executeDataRequest("sp_CreateOrUpdateUser", inputParam, true);
-        console.log("create result: ", result);
         return result;
 
     } catch (error) {   
@@ -156,13 +172,16 @@ export async function getUserLoginDetails(userName: string) {
     try {
         const params = [{ key: 'userName', value: userName }];
         const result = await executeDataRequest(`
-            SELECT a.id, a.username, a.status, a.create_dt, a.fullname, a.update_dt,
-                    c.profile_name, a.email, a.phone, a.locked, a.expiry_date, a.version, 
+            SELECT a.id_user, a.username, a.status, a.create_dt, a.fullname, a.update_dt,
+                    a.profileid, c.profile_name, a.email, a.phone, a.locked, a.expiry_date, a.version, 
                     a.created_by, a.auth_type, a.password, a.registration_number,
-                    a.position, a.issupervisor, b.fullname superviseur, a.branch
+                    a.position, a.issupervisor, b.fullname superviseur, 
+                    a.id_organisation, o.nom_organisation, a.id_ecole, e.nom_ecole, a.access_level
             FROM users a
-            JOIN user_profiles c ON c.id = a.id_user_profile
-            join users b on a.superviseur = b.id
+            JOIN profiles c ON c.profileid = a.profileid
+            LEFT JOIN users b on a.superviseur = b.id_user
+            LEFT JOIN organisations o ON a.id_organisation = o.id_organisation
+            LEFT JOIN ecoles e ON a.id_ecole = e.id_ecole
             WHERE a.status = 'A' AND a.username = @userName
         `, params, false); // false = raw SQL
 
@@ -180,5 +199,3 @@ export async function getUserLoginDetails(userName: string) {
         return null;
     }
 }
-
-
