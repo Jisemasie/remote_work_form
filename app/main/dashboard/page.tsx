@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-    ChartBarIcon, 
-    ClockIcon, 
-    CheckCircleIcon, 
+import {
+    ChartBarIcon,
+    ClockIcon,
+    CheckCircleIcon,
     ExclamationTriangleIcon,
     UserGroupIcon,
     DocumentTextIcon,
@@ -42,7 +42,7 @@ export default function DashboardPage() {
             try {
                 const sessionData = await getSessionData();
                 setUserInfo(sessionData);
-                
+
                 if (sessionData?.id) {
                     const isSupervisor = sessionData.issupervisor === true || sessionData.issupervisor === 1;
                     const dashboardStats = await getDashboardStats(parseInt(sessionData.id), isSupervisor);
@@ -87,7 +87,7 @@ export default function DashboardPage() {
                 trend: {
                     value: 12,
                     isPositive: true
-                }
+                },
                 onClick: () => router.push('/main/tasks')
             },
             {
@@ -98,7 +98,7 @@ export default function DashboardPage() {
                 trend: {
                     value: 8,
                     isPositive: true
-                }
+                },
                 onClick: () => router.push('/main/tasks?status=completed')
             },
             {
@@ -109,7 +109,7 @@ export default function DashboardPage() {
                 trend: {
                     value: 3,
                     isPositive: false
-                }
+                },
                 onClick: () => router.push('/main/tasks?status=in_progress')
             },
             {
@@ -120,7 +120,7 @@ export default function DashboardPage() {
                 trend: {
                     value: 15,
                     isPositive: false
-                }
+                },
                 onClick: () => router.push('/main/tasks?overdue=true')
             },
             {
@@ -131,7 +131,7 @@ export default function DashboardPage() {
                 trend: {
                     value: 5,
                     isPositive: true
-                }
+                },
                 onClick: () => router.push('/main/reports')
             },
             {
@@ -228,9 +228,8 @@ export default function DashboardPage() {
                     {statCards.map((card, index) => (
                         <div
                             key={index}
-                            className={`bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition-all duration-300 ${
-                                card.onClick ? 'cursor-pointer hover:scale-105' : ''
-                            }`}
+                            className={`bg-white overflow-hidden shadow-lg rounded-lg hover:shadow-xl transition-all duration-300 ${card.onClick ? 'cursor-pointer hover:scale-105' : ''
+                                }`}
                             onClick={card.onClick}
                         >
                             <div className="p-6">
@@ -249,13 +248,11 @@ export default function DashboardPage() {
                                                 </p>
                                             </div>
                                             {card.trend && (
-                                                <div className={`flex items-center text-sm ${
-                                                    card.trend.isPositive ? 'text-green-600' : 'text-red-600'
-                                                }`}>
-                                                    <TrendingUpIcon 
-                                                        className={`h-4 w-4 mr-1 ${
-                                                            !card.trend.isPositive ? 'transform rotate-180' : ''
-                                                        }`} 
+                                                <div className={`flex items-center text-sm ${card.trend.isPositive ? 'text-green-600' : 'text-red-600'
+                                                    }`}>
+                                                    <TrendingUpIcon
+                                                        className={`h-4 w-4 mr-1 ${!card.trend.isPositive ? 'transform rotate-180' : ''
+                                                            }`}
                                                     />
                                                     {card.trend.value}%
                                                 </div>
@@ -285,7 +282,7 @@ export default function DashboardPage() {
                                     <p className="text-sm text-gray-500">Créer un rapport quotidien</p>
                                 </div>
                             </button>
-                            
+
                             <button
                                 onClick={() => router.push('/main/tasks')}
                                 className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"

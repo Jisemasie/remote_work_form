@@ -9,7 +9,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Head>
-        <title>School Management Dashboard</title>
+        <title>Remote Work Form Management Dashboard</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Head>
 
@@ -34,7 +34,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 </Suspense>
               </div>
             </main>
-            
+
 
           </div>
         </div>

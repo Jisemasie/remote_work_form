@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiChevronLeft, FiChevronRight, FiHome, FiUser, FiFileText, FiBarChart3 } from "react-icons/fi";
+import { FiChevronLeft, FiChevronRight, FiHome, FiUser, FiFileText, FiBarChart } from "react-icons/fi";
 import { MdLogout } from "react-icons/md";
 import { MdOutlineRequestQuote } from "react-icons/md";
 import Link from 'next/link';
@@ -25,9 +25,8 @@ export default function Sidebar() {
     return () => window.removeEventListener('resize', checkIfMobile);
   }, []);
 
-  const sidebarClasses = `fixed h-[calc(100vh-64px-48px)] bg-[#3e5172] text-white transition-all duration-300 z-30 ${
-    isOpen ? "w-52" : "w-16"
-  } flex flex-col`;
+  const sidebarClasses = `fixed h-[calc(100vh-64px-48px)] bg-[#3e5172] text-white transition-all duration-300 z-30 ${isOpen ? "w-52" : "w-16"
+    } flex flex-col`;
 
   return (
     <aside
@@ -38,58 +37,58 @@ export default function Sidebar() {
       <div className="flex-1 overflow-y-auto py-2">
         <nav>
           <ul className="space-y-1 px-2">
-            
-            <SidebarLink 
-              href="/main" 
-              icon={<FiHome className="h-5 w-5" />} 
-              label="Accueil" 
-              isOpen={isOpen} 
-            />
-            
-            <SidebarLink 
-              href="/main/dashboard" 
-              icon={<FiBarChart3 className="h-5 w-5" />} 
-              label="Tableau de bord" 
-              isOpen={isOpen} 
-            />
-            
-            <SidebarLink 
-              href="/main/tasks" 
-              icon={<FiFileText className="h-5 w-5" />} 
-              label="Tâches" 
-              isOpen={isOpen} 
-            />
-            
-            <SidebarLink 
-              href="/main/formulaire" 
-              icon={<MdOutlineRequestQuote className="h-5 w-5" />} 
-              label="Rapports" 
-              isOpen={isOpen} 
+
+            <SidebarLink
+              href="/main"
+              icon={<FiHome className="h-5 w-5" />}
+              label="Accueil"
+              isOpen={isOpen}
             />
 
-            <SidebarLink 
-              href="/main/reports" 
-              icon={<FiFileText className="h-5 w-5" />} 
-              label="Mes rapports" 
-              isOpen={isOpen} 
+            <SidebarLink
+              href="/main/dashboard"
+              icon={<FiBarChart className="h-5 w-5" />}
+              label="Tableau de bord"
+              isOpen={isOpen}
             />
 
-            <SidebarLink 
-              href="/main/users" 
-              icon={<FiUser className="h-5 w-5" />} 
-              label="Utilisateurs" 
-              isOpen={isOpen} 
+            <SidebarLink
+              href="/main/tasks"
+              icon={<FiFileText className="h-5 w-5" />}
+              label="Tâches"
+              isOpen={isOpen}
             />
 
-            <SidebarLink 
-              href="#" 
-              onClick={() =>  signOut({
-                          redirect: true,
-                          redirectTo: "/login",
-                        })}
-              icon={<MdLogout className="h-5 w-5" />} 
-              label="Déconnexion" 
-              isOpen={isOpen} 
+            <SidebarLink
+              href="/main/formulaire"
+              icon={<MdOutlineRequestQuote className="h-5 w-5" />}
+              label="Rapports"
+              isOpen={isOpen}
+            />
+
+            <SidebarLink
+              href="/main/reports"
+              icon={<FiFileText className="h-5 w-5" />}
+              label="Mes rapports"
+              isOpen={isOpen}
+            />
+
+            <SidebarLink
+              href="/main/users"
+              icon={<FiUser className="h-5 w-5" />}
+              label="Utilisateurs"
+              isOpen={isOpen}
+            />
+
+            <SidebarLink
+              href="#"
+              onClick={() => signOut({
+                redirect: true,
+                redirectTo: "/login",
+              })}
+              icon={<MdLogout className="h-5 w-5" />}
+              label="Déconnexion"
+              isOpen={isOpen}
             />
 
 
@@ -141,9 +140,8 @@ function SidebarLink({
     <li>
       <Link
         href={href}
-        className={`relative flex items-center space-x-3 rounded-md p-2 transition-colors duration-200 ${
-          isOpen ? "justify-start" : "justify-center"
-        } ${isActive ? "bg-sky-600" : "hover:bg-blue-800"}`}
+        className={`relative flex items-center space-x-3 rounded-md p-2 transition-colors duration-200 ${isOpen ? "justify-start" : "justify-center"
+          } ${isActive ? "bg-sky-600" : "hover:bg-blue-800"}`}
         onClick={onClick}
         tabIndex={0}
         title={!isOpen ? label : undefined}

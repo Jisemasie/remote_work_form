@@ -9,7 +9,7 @@ if (
   !process.env.MSSQL_SERVER ||
   !process.env.MSSQL_DATABASE
 ) {
-  throw new Error("❌ MSSQL environment variables missing. Vérifie ton fichier .env");
+  throw new Error(" MSSQL environment variables missing. Vérifie ton fichier .env");
 }
 
 // Config MSSQL
@@ -38,8 +38,8 @@ const poolPromise = new sql.ConnectionPool(mssql_db_config).connect();
 
 // Enhanced error handling
 const handleDbError = (error: any, operation: string) => {
-  console.error(`❌ DB ${operation} error:`, error);
-  
+  console.error(` DB ${operation} error:`, error);
+
   if (error.code === 'ECONNRESET') {
     console.error('Connection was reset. Attempting to reconnect...');
   } else if (error.code === 'ETIMEOUT') {
@@ -47,7 +47,7 @@ const handleDbError = (error: any, operation: string) => {
   } else if (error.code === 'ELOGIN') {
     console.error('Login failed - check credentials');
   }
-  
+
   return null;
 };
 
@@ -100,17 +100,17 @@ export async function executeInsertUpdateRequest(
   useTransaction = false
 ) {
   let transaction: sql.Transaction | null = null;
-  
+
   try {
     const pool = await poolPromise;
-    
+
     if (useTransaction) {
       transaction = new sql.Transaction(pool);
       await transaction.begin();
     }
-    
-    const request = useTransaction && transaction 
-      ? new sql.Request(transaction) 
+
+    const request = useTransaction && transaction
+      ? new sql.Request(transaction)
       : pool.request();
 
     // Enhanced parameter binding
@@ -134,24 +134,24 @@ export async function executeInsertUpdateRequest(
       }
     }
 
-    const result = isProcedure 
-      ? await request.execute(sqlOrSp) 
+    const result = isProcedure
+      ? await request.execute(sqlOrSp)
       : await request.query(sqlOrSp);
-    
+
     if (useTransaction && transaction) {
       await transaction.commit();
     }
-    
+
     return result.recordset || [];
   } catch (err) {
     if (useTransaction && transaction) {
       try {
         await transaction.rollback();
       } catch (rollbackErr) {
-        console.error('❌ Transaction rollback failed:', rollbackErr);
+        console.error('Transaction rollback failed:', rollbackErr);
       }
     }
-    
+
     handleDbError(err, 'INSERT/UPDATE');
     return null;
   }
@@ -167,22 +167,22 @@ export async function executeBatchRequest(
   useTransaction = true
 ) {
   let transaction: sql.Transaction | null = null;
-  
+
   try {
     const pool = await poolPromise;
-    
+
     if (useTransaction) {
       transaction = new sql.Transaction(pool);
       await transaction.begin();
     }
-    
+
     const results = [];
-    
+
     for (const operation of operations) {
-      const request = useTransaction && transaction 
-        ? new sql.Request(transaction) 
+      const request = useTransaction && transaction
+        ? new sql.Request(transaction)
         : pool.request();
-      
+
       // Bind parameters
       for (const param of operation.params) {
         if (param.value === null || param.value === undefined) {
@@ -203,28 +203,28 @@ export async function executeBatchRequest(
           request.input(param.key, sql.NVarChar, String(param.value));
         }
       }
-      
+
       const result = operation.isProcedure !== false
         ? await request.execute(operation.sql)
         : await request.query(operation.sql);
-      
+
       results.push(result.recordset);
     }
-    
+
     if (useTransaction && transaction) {
       await transaction.commit();
     }
-    
+
     return results;
   } catch (err) {
     if (useTransaction && transaction) {
       try {
         await transaction.rollback();
       } catch (rollbackErr) {
-        console.error('❌ Batch transaction rollback failed:', rollbackErr);
+        console.error(' Batch transaction rollback failed:', rollbackErr);
       }
     }
-    
+
     handleDbError(err, 'BATCH');
     return null;
   }
@@ -237,7 +237,7 @@ export async function checkDatabaseConnection(): Promise<boolean> {
     const result = await pool.request().query('SELECT 1 as test');
     return result.recordset && result.recordset.length > 0;
   } catch (err) {
-    console.error('❌ Database health check failed:', err);
+    console.error(' Database health check failed:', err);
     return false;
   }
 }
@@ -247,8 +247,8 @@ export async function closeDatabaseConnection(): Promise<void> {
   try {
     const pool = await poolPromise;
     await pool.close();
-    console.log('✅ Database connection pool closed');
+    console.log(' Database connection pool closed');
   } catch (err) {
-    console.error('❌ Error closing database connection:', err);
+    console.error(' Error closing database connection:', err);
   }
 }

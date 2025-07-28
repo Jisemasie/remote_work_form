@@ -7,7 +7,7 @@ import { InputParam } from './definitions';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 
 // Enhanced authentication with security features
 export async function authenticateWithSecurity(
@@ -26,17 +26,17 @@ export async function authenticateWithSecurity(
 
         // Attempt authentication
         await signIn('credentials', formData);
-        
+
         // Reset failed attempts on successful login
         await resetFailedLoginAttempts(username);
-        
+
         // Update last login
         const userResult = await executeDataRequest(
             'SELECT id FROM users WHERE username = @username',
             [{ key: 'username', value: username }],
             false
         );
-        
+
         if (userResult && userResult.length > 0) {
             await updateUserLastLogin(userResult[0].id);
         }
@@ -45,7 +45,7 @@ export async function authenticateWithSecurity(
         if (error instanceof AuthError) {
             // Increment failed login attempts
             const failedAttempts = await incrementFailedLoginAttempts(username);
-            
+
             switch (error.type) {
                 case 'CredentialsSignin':
                     if (failedAttempts >= 5) {
@@ -68,7 +68,7 @@ export async function checkAccountLockStatus(username: string) {
         ];
 
         const result = await executeDataRequest('sp_CheckAccountLockStatus', params, true);
-        
+
         if (result && result.length > 0) {
             return {
                 isLocked: result[0].is_locked,
@@ -77,7 +77,7 @@ export async function checkAccountLockStatus(username: string) {
                 lockedBy: result[0].locked_by
             };
         }
-        
+
         return { isLocked: false, reason: null, lockedAt: null, lockedBy: null };
     } catch (error) {
         console.error('Erreur lors de la vérification du verrouillage:', error);
@@ -95,9 +95,9 @@ export async function changeUserPasswordEnhanced(
         // Validate password strength
         const passwordValidation = validatePasswordStrength(newPassword);
         if (!passwordValidation.isValid) {
-            return { 
-                success: false, 
-                message: passwordValidation.message 
+            return {
+                success: false,
+                message: passwordValidation.message
             };
         }
 
@@ -117,7 +117,7 @@ export async function changeUserPasswordEnhanced(
         ];
 
         const result = await executeInsertUpdateRequest('sp_ChangeUserPasswordEnhanced', params, true);
-        
+
         if (result && result.length > 0) {
             const response = result[0];
             if (response.success) {
@@ -128,7 +128,7 @@ export async function changeUserPasswordEnhanced(
                 return { success: false, message: response.message || 'Erreur lors du changement de mot de passe' };
             }
         }
-        
+
         return { success: false, message: 'Erreur lors du changement de mot de passe' };
     } catch (error) {
         console.error('Erreur lors du changement de mot de passe:', error);
@@ -144,31 +144,31 @@ function validatePasswordStrength(password: string): { isValid: boolean; message
     const hasNumbers = /\d/.test(password);
     const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
     const hasNoSpaces = !/\s/.test(password);
-    
+
     if (password.length < minLength) {
         return { isValid: false, message: `Le mot de passe doit contenir au moins ${minLength} caractères` };
     }
-    
+
     if (!hasUpperCase) {
         return { isValid: false, message: 'Le mot de passe doit contenir au moins une majuscule' };
     }
-    
+
     if (!hasLowerCase) {
         return { isValid: false, message: 'Le mot de passe doit contenir au moins une minuscule' };
     }
-    
+
     if (!hasNumbers) {
         return { isValid: false, message: 'Le mot de passe doit contenir au moins un chiffre' };
     }
-    
+
     if (!hasSpecialChar) {
         return { isValid: false, message: 'Le mot de passe doit contenir au moins un caractère spécial' };
     }
-    
+
     if (!hasNoSpaces) {
         return { isValid: false, message: 'Le mot de passe ne doit pas contenir d\'espaces' };
     }
-    
+
     return { isValid: true, message: 'Mot de passe valide' };
 }
 
@@ -180,7 +180,7 @@ async function checkPasswordHistory(userId: number, newPassword: string): Promis
         ];
 
         const result = await executeDataRequest('sp_GetPasswordHistory', params, true);
-        
+
         if (result && result.length > 0) {
             for (const historyEntry of result) {
                 const isMatch = await bcrypt.compare(newPassword, historyEntry.password_hash);
@@ -189,7 +189,7 @@ async function checkPasswordHistory(userId: number, newPassword: string): Promis
                 }
             }
         }
-        
+
         return false;
     } catch (error) {
         console.error('Erreur lors de la vérification de l\'historique des mots de passe:', error);
@@ -209,9 +209,9 @@ export async function logUserActivity(
 ) {
     try {
         const headersList = headers();
-        const ipAddress = headersList.get('x-forwarded-for') || 
-                         headersList.get('x-real-ip') || 
-                         'unknown';
+        const ipAddress = headersList.get('x-forwarded-for') ||
+            headersList.get('x-real-ip') ||
+            'unknown';
         const userAgent = headersList.get('user-agent') || 'unknown';
 
         const params: InputParam[] = [
@@ -236,9 +236,9 @@ export async function logUserActivity(
 export async function updateUserLastLogin(userId: number) {
     try {
         const headersList = headers();
-        const ipAddress = headersList.get('x-forwarded-for') || 
-                         headersList.get('x-real-ip') || 
-                         'unknown';
+        const ipAddress = headersList.get('x-forwarded-for') ||
+            headersList.get('x-real-ip') ||
+            'unknown';
 
         const params: InputParam[] = [
             { key: 'user_id', value: userId },
@@ -247,7 +247,7 @@ export async function updateUserLastLogin(userId: number) {
         ];
 
         await executeInsertUpdateRequest('sp_UpdateUserLastLogin', params, true);
-        
+
         // Log the login activity
         await logUserActivity(userId, 'LOGIN', 'User logged in successfully');
     } catch (error) {
@@ -264,12 +264,12 @@ export async function incrementFailedLoginAttempts(username: string): Promise<nu
 
         const result = await executeInsertUpdateRequest('sp_IncrementFailedLoginAttempts', params, true);
         const failedAttempts = result && result.length > 0 ? result[0].failed_attempts : 0;
-        
+
         // Auto-lock account after 5 failed attempts
         if (failedAttempts >= 5) {
             await lockUserAccount(username, 'Too many failed login attempts');
         }
-        
+
         return failedAttempts;
     } catch (error) {
         console.error('Erreur lors de l\'incrémentation des tentatives échouées:', error);
@@ -299,14 +299,14 @@ export async function lockUserAccount(username: string, reason: string = 'Multip
         ];
 
         await executeInsertUpdateRequest('sp_LockUserAccount', params, true);
-        
+
         // Get user ID for logging
         const userResult = await executeDataRequest(
             'SELECT id FROM users WHERE username = @username',
             [{ key: 'username', value: username }],
             false
         );
-        
+
         if (userResult && userResult.length > 0) {
             await logUserActivity(
                 userResult[0].id,
@@ -327,14 +327,14 @@ export async function unlockUserAccount(username: string, adminId: number) {
         ];
 
         await executeInsertUpdateRequest('sp_UnlockUserAccount', params, true);
-        
+
         // Get user ID for logging
         const userResult = await executeDataRequest(
             'SELECT id FROM users WHERE username = @username',
             [{ key: 'username', value: username }],
             false
         );
-        
+
         if (userResult && userResult.length > 0) {
             await logUserActivity(
                 adminId,
@@ -342,7 +342,7 @@ export async function unlockUserAccount(username: string, adminId: number) {
                 `Account unlocked for user: ${username}`
             );
         }
-        
+
         revalidatePath('/main/users');
     } catch (error) {
         console.error('Erreur lors du déverrouillage du compte:', error);
@@ -355,7 +355,7 @@ export async function signOutUserEnhanced(userId?: number) {
         if (userId) {
             await logUserActivity(userId, 'LOGOUT', 'User logged out');
         }
-        
+
         await signOut({
             redirect: true,
             redirectTo: "/login",

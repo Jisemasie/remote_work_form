@@ -5,7 +5,7 @@ import Credentials from 'next-auth/providers/credentials';
 import { authConfig } from './auth.config';
 import { z } from 'zod';
 import { getUserLoginDetails } from '@/app/lib/user_actions'
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import fetchData from './app/lib/fetchdata';
 import { LoginData } from './app/lib/definitions';
 import type { User } from 'next-auth';
@@ -18,7 +18,7 @@ interface ADAuthResponse {
   title: string,
   error: string
 }
- 
+
 export const { auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
@@ -31,7 +31,7 @@ export const { auth, signIn, signOut } = NextAuth({
           const { username, password } = parsedCredentials.data;
           const dbUser = await getUserLoginDetails(username);
           if (!dbUser) return null;
-          if((dbUser as LoginData).auth_type == 'local'){  // local authentication
+          if ((dbUser as LoginData).auth_type == 'local') {  // local authentication
             const passwordsMatch = await bcrypt.compare(password, String((dbUser as LoginData).password));
             if (passwordsMatch) return dbUser;
           } else {  // active directory authentication
@@ -40,7 +40,7 @@ export const { auth, signIn, signOut } = NextAuth({
               password: password
             }
             const result: ADAuthResponse = await fetchData(`${process.env.NEXT_PUBLIC_BASE_URL}/api/ad_auth`, 'POST', body)
-            if(result && result.authenticated ){
+            if (result && result.authenticated) {
 
               // Convert to NextAuth User type
               const user: User = {
@@ -50,7 +50,7 @@ export const { auth, signIn, signOut } = NextAuth({
                 username: dbUser.username ?? '',
                 email: dbUser.email ?? '',
                 profileName: dbUser.profile_name ?? '',
-                profileId: dbUser.profileid,    
+                profileId: dbUser.profileid,
                 orgId: dbUser.id_organisation ?? 0,
                 orgName: dbUser.nom_organisation ?? '',
                 schoolId: dbUser.id_ecole ?? 0,
@@ -63,13 +63,13 @@ export const { auth, signIn, signOut } = NextAuth({
                 branch: dbUser.branch ?? '',
               };
 
-            return user;
-          } else {
+              return user;
+            } else {
 
-            //comment = "Wrong password";
-            return null;
+              //comment = "Wrong password";
+              return null;
 
-          }
+            }
 
           }
         }

@@ -1,71 +1,71 @@
 'use server'
 
 import { executeDataRequest } from '@/app/lib/db';
-import {cryptPassword} from '@/app/lib/pwd_util';
-import { SearchParams, InputParam, SelectList } from './definitions';    
+import { cryptPassword } from '@/app/lib/pwd_util';
+import { SearchParams, InputParam, SelectList } from './definitions';
 import { CreateUpdateUser } from './definitions';
 
 // Import the new functions
-import { getOrganisationList, getEcoleList } from './user_actions';
+// import { getOrganisationList, getEcoleList } from './user_actions';
 
 // Export them for use in components
-export { getOrganisationList, getEcoleList };
+// export { getOrganisationList, getEcoleList };
 
 // Get a user profile list
-export async function getUserProfileList(): Promise<SelectList[] | null>  {  
-    try {  
+export async function getUserProfileList(): Promise<SelectList[] | null> {
+    try {
         const result = await executeDataRequest(`
             SELECT profileid AS [key], profile_name AS [value]
-            FROM profiles
+            FROM user_profiles
             WHERE status = 'A'
             ORDER BY profile_name
         `, [], false);
-        return result || null;     
-    } catch (error) {   
-        console.log(error);  
+        return result || null;
+    } catch (error) {
+        console.log(error);
         return null;
-    }  
+    }
 }
 
 // Get organisation list
-export async function getOrganisationList(): Promise<SelectList[] | null> {  
-    try {  
-        const result = await executeDataRequest(`
-            SELECT id_organisation AS [key], nom_organisation AS [value]
-            FROM organisations
-            WHERE status = 'A'
-            ORDER BY nom_organisation
-        `, [], false);
-        return result || null;     
-    } catch (error) {   
-        console.log(error);  
-        return null;
-    }  
-}
+// export async function getOrganisationList(): Promise<SelectList[] | null> {
+//     try {
+//         const result = await executeDataRequest(`
+//             SELECT id_organisation AS [key], nom_organisation AS [value]
+//             FROM organisations
+//             WHERE status = 'A'
+//             ORDER BY nom_organisation
+//         `, [], false);
+//         return result || null;
+//     } catch (error) {
+//         console.log(error);
+//         return null;
+//     }
+// }
 
 // Get ecole list by organisation
-export async function getEcoleList(organisationId?: number): Promise<SelectList[] | null>  {  
-    try {  
-        let whereClause = "WHERE status = 'A'";
-        if (organisationId) {
-            whereClause += ` AND id_organisation = ${organisationId}`;
-        }
-        
-        const result = await executeDataRequest(`
-            SELECT id_ecole AS [key], nom_ecole AS [value]
-            FROM ecoles
-            ${whereClause}
-            ORDER BY nom_ecole
-        `, [], false);
-        return result || null;     
-    } catch (error) {   
-        console.log(error);  
-        return null;
-    }  
-}
+// export async function getEcoleList(organisationId?: number): Promise<SelectList[] | null> {
+//     try {
+//         let whereClause = "WHERE status = 'A'";
+//         if (organisationId) {
+//             whereClause += ` AND id_organisation = ${organisationId}`;
+//         }
+
+//         const result = await executeDataRequest(`
+//             SELECT id_ecole AS [key], nom_ecole AS [value]
+//             FROM ecoles
+//             ${whereClause}
+//             ORDER BY nom_ecole
+//         `, [], false);
+//         return result || null;
+//     } catch (error) {
+//         console.log(error);
+//         return null;
+//     }
+// }
 
 // Get a user list
-export async function getUserList(): Promise<SelectList[] | null>  {  
+export async function getUserList(): Promise<SelectList[] | null> {
     try {
         const queryStr = `SELECT id_user as [key], fullname as [value]
             FROM users
@@ -73,15 +73,15 @@ export async function getUserList(): Promise<SelectList[] | null>  {
             ORDER BY fullname ASC`;
         const result = await executeDataRequest(queryStr, [], false);
         return result;
-    } catch (error) {    
-        console.log(error);  
+    } catch (error) {
+        console.log(error);
         return null;
-    } 
+    }
 }
 
 // Search for users
-export async function searchUser(i_params: SearchParams) {  
-    try {  
+export async function searchUser(i_params: SearchParams) {
+    try {
         const { scope, value: search_value } = i_params;
         let queryCondition = 'WHERE 1 = 1';
 
@@ -92,7 +92,7 @@ export async function searchUser(i_params: SearchParams) {
         if (scope === 'userid') queryCondition += ` AND a.id_user = ${search_value}`;
         if (scope === 'organisation') queryCondition += ` AND a.id_organisation = ${search_value}`;
         if (scope === 'all') queryCondition = 'WHERE 1 = 1';
-        
+
         const queryStr = `
         SELECT 
             b.profile_name
@@ -122,22 +122,22 @@ export async function searchUser(i_params: SearchParams) {
             ,o.nom_organisation
             ,e.nom_ecole
         FROM users a
-        JOIN profiles b ON a.profileid = b.profileid
+        JOIN user_profiles b ON a.id_user_profile = b.id
         LEFT JOIN users c ON a.superviseur = c.id_user
         LEFT JOIN organisations o ON a.id_organisation = o.id_organisation
         LEFT JOIN ecoles e ON a.id_ecole = e.id_ecole
         ${queryCondition}`;
         const result = await executeDataRequest(queryStr, [], false);
         return result;
-    } catch (error) {    
-        console.log(error);  
+    } catch (error) {
+        console.log(error);
         return null;
-    }  
+    }
 }
 
 // Create or update a user
-export async function createorUpdateUser(user: CreateUpdateUser) {  
-    try { 
+export async function createorUpdateUser(user: CreateUpdateUser) {
+    try {
 
         let hash = '';
         if (user.password !== '') {
@@ -150,9 +150,9 @@ export async function createorUpdateUser(user: CreateUpdateUser) {
 
         const inputParam: InputParam[] = [];
         Object.entries(user).forEach(([key, value]) => {
-            if(!excludedFields.includes(key)){
+            if (!excludedFields.includes(key)) {
                 inputParam.push({
-                    key: key, 
+                    key: key,
                     value: value
                 });
             }
@@ -161,10 +161,10 @@ export async function createorUpdateUser(user: CreateUpdateUser) {
         const result = await executeDataRequest("sp_CreateOrUpdateUser", inputParam, true);
         return result;
 
-    } catch (error) {   
-        console.log(error); 
+    } catch (error) {
+        console.log(error);
         return null;
-    }  
+    }
 }
 
 // Get user login details

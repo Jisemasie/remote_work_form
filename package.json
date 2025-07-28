@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -12,10 +12,9 @@
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.0.1",
     "@types/axios": "^0.9.36",
-    "@types/bcrypt": "^5.0.2",
     "@types/mssql": "^9.1.7",
     "axios": "^1.9.0",
-    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "chart.js": "^4.4.8",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
