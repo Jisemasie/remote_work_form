@@ -30,9 +30,8 @@ export const authConfig = {
         token.fullName = user.fullName;
         token.username = user.username;
         token.lastLogin = user.lastLogin ?? new Date().toISOString();
-        token.orgId = user.orgId;
-        token.orgName = user.orgName;
-        token.schoolId = user.schoolId;
+        token.branch = user.branch;
+        token.branchName = user.branchName;
         token.profileName = user.profileName;
         token.profileId = user.profileId;
         token.accessLevel = user.accessLevel;
@@ -51,9 +50,8 @@ export const authConfig = {
         session.user.fullName = token.fullName as string | undefined;
         session.user.username = token.username as string | undefined;
         session.user.lastLogin = token.lastLogin as string | undefined;
-        session.user.orgId = token.orgId as number | undefined;
-        session.user.orgName = token.orgName as string;
-        session.user.schoolId = token.schoolId as number | undefined;
+        session.user.branch = token.branch as number | undefined;
+        session.user.branchName = token.branchName as string | undefined;
         session.user.profileName = token.profileName as string | undefined;
         session.user.profileId = token.profileId as number;
         session.user.accessLevel = token.accessLevel as string | undefined;
@@ -63,7 +61,6 @@ export const authConfig = {
         session.user.position = token.position as string | undefined;
         session.user.issupervisor = token.issupervisor as boolean | undefined;
         session.user.superviseur = token.superviseur as string | undefined;
-        session.user.branch = token.branch as string;
       }
       //console.log("session: ", session)
       return session;

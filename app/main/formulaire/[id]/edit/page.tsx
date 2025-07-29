@@ -3,12 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { getSessionData } from '@/app/lib/session';
-import { createOrUpdateDailyReport, getEmployeeTasksForReport } from '@/app/lib/task_actions';
-import { DailyReport, ReportTask, Task } from '@/app/lib/definitions';
+import { createOrUpdateFormulaire, getFormulaireDetails, getUserTasksForDate } from '@/app/lib/formulaire_actions';
+import { Formulaire, Task } from '@/app/lib/definitions';
 import { useToast } from '@/app/hook/useToast';
 import { PlusIcon, TrashIcon, SaveIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 
-// Define types for our data structures
 type EmployeeInfo = {
   name: string;
   registrationNumber: string;
@@ -19,21 +18,17 @@ type EmployeeInfo = {
 };
 
 type TaskData = {
-  id: number;
-  name: string;
-  description: string;
-  startDate: string;
-  status: string;
-  dueDate: string;
-  gaps: string | number;
-  comments: string;
-  type_task?: string;
-  completion_percentage: number;
-  employee_notes: string;
-  supervisor_feedback?: string;
+  id_task: number;
+  type_task: string;
+  task_number: number;
+  task_description: string;
+  task_start_dt: string;
+  task_end_dt: string;
+  task_status: string;
+  task_comment: string;
 };
 
-const DailyTaskReport: React.FC = () => {
+const FormulaireEdit: React.FC = () => {
   const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
@@ -41,7 +36,6 @@ const DailyTaskReport: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Initialize state with TypeScript types
   const [employeeInfo, setEmployeeInfo] = useState<EmployeeInfo>({
     name: '',
     registrationNumber: '',
@@ -51,26 +45,24 @@ const DailyTaskReport: React.FC = () => {
     supervisor: '',
   });
 
-  const [plannedTasks, setPlannedTasks] = useState<TaskData[]>([
+  const [tasks, setTasks] = useState<TaskData[]>([
     { 
-      id: 1, 
-      name: 'Tâche 1', 
-      description: '', 
-      startDate: new Date().toISOString().split('T')[0], 
-      status: 'not_started', 
-      dueDate: '', 
-      gaps: '', 
-      comments: '',
+      id_task: 0,
       type_task: 'planned',
-      completion_percentage: 0,
-      employee_notes: ''
+      task_number: 1,
+      task_description: '',
+      task_start_dt: new Date().toISOString().split('T')[0],
+      task_end_dt: '',
+      task_status: 'not_started',
+      task_comment: ''
     },
   ]);
 
-  const [supervisorComments, setSupervisorComments] = useState<string>('');
+  const [employeeComment, setEmployeeComment] = useState<string>('');
+  const [supervisorComment, setSupervisorComment] = useState<string>('');
   const [sessionData, setSessionData] = useState<any>(null);
-  const [reportId, setReportId] = useState<number>(0);
-  const [reportStatus, setReportStatus] = useState<string>('draft');
+  const [formulaireId, setFormulaireId] = useState<number>(0);
+  const [formulaireStatus, setFormulaireStatus] = useState<string>('draft');
 
   const action = searchParams.get('action') || 'add';
   const { id } = params;
@@ -92,36 +84,52 @@ const DailyTaskReport: React.FC = () => {
             branch: sessionData.branch || '',
           }));
 
-          // If editing existing report, load data
           if (action === 'update' && id !== '0') {
-            setReportId(parseInt(id as string));
-            // Load existing report data here
-            // const reportData = await getReportById(parseInt(id as string));
-            // if (reportData) {
-            //   // Populate form with existing data
-            // }
+            setFormulaireId(parseInt(id as string));
+            const details = await getFormulaireDetails(parseInt(id as string));
+            
+            if (details.formulaire) {
+              setEmployeeComment(details.formulaire.employee_comment || '');
+              setSupervisorComment(details.formulaire.supervisor_comment || '');
+              setFormulaireStatus(details.formulaire.status);
+              setEmployeeInfo(prev => ({
+                ...prev,
+                date: new Date(details.formulaire.create_dt).toISOString().split('T')[0]
+              }));
+            }
+            
+            if (details.tasks && details.tasks.length > 0) {
+              const formattedTasks = details.tasks.map((task: any) => ({
+                id_task: task.id_task,
+                type_task: task.type_task,
+                task_number: task.task_number,
+                task_description: task.task_description,
+                task_start_dt: task.task_start_dt ? new Date(task.task_start_dt).toISOString().split('T')[0] : '',
+                task_end_dt: task.task_end_dt ? new Date(task.task_end_dt).toISOString().split('T')[0] : '',
+                task_status: task.task_status,
+                task_comment: task.task_comment || ''
+              }));
+              setTasks(formattedTasks);
+            }
           } else {
-            // Load employee's tasks for today's report
-            const tasks = await getEmployeeTasksForReport(
+            // Load user's tasks for today
+            const userTasks = await getUserTasksForDate(
               parseInt(sessionData.id),
               new Date()
             );
             
-            if (tasks && tasks.length > 0) {
-              const formattedTasks = tasks.map((task: Task, index: number) => ({
-                id: task.id,
-                name: task.task_name,
-                description: task.description,
-                startDate: task.start_date ? new Date(task.start_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-                status: task.status,
-                dueDate: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
-                gaps: task.gaps || '',
-                comments: task.employee_comments || '',
-                type_task: task.task_type || 'planned',
-                completion_percentage: 0,
-                employee_notes: ''
+            if (userTasks && userTasks.length > 0) {
+              const formattedTasks = userTasks.map((task: any, index: number) => ({
+                id_task: task.id_task || 0,
+                type_task: task.type_task || 'planned',
+                task_number: index + 1,
+                task_description: task.task_description || '',
+                task_start_dt: new Date().toISOString().split('T')[0],
+                task_end_dt: '',
+                task_status: 'not_started',
+                task_comment: ''
               }));
-              setPlannedTasks(formattedTasks);
+              setTasks(formattedTasks);
             }
           }
         }
@@ -136,68 +144,41 @@ const DailyTaskReport: React.FC = () => {
     fetchData();
   }, [action, id, error]);
 
-  // Event handler with proper typing
   const handleEmployeeInfoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setEmployeeInfo(prev => ({ ...prev, [name]: value }));
   };
 
-  const handlePlannedTaskChange = (id: number, field: keyof TaskData, value: string | number) => {
-    const updatedTasks = plannedTasks.map(task => {
-      if (task.id === id) {
-        const updatedTask = { ...task, [field]: value };
-        
-        // Automatically calculate gaps if status or due date changes
-        if ((field === 'status' || field === 'dueDate') && updatedTask.dueDate) {
-          updatedTask.gaps = calculateGaps(updatedTask.status, updatedTask.dueDate);
-        }
-        
-        return updatedTask;
+  const handleTaskChange = (index: number, field: keyof TaskData, value: string | number) => {
+    const updatedTasks = tasks.map((task, i) => {
+      if (i === index) {
+        return { ...task, [field]: value };
       }
       return task;
     });
-    
-    setPlannedTasks(updatedTasks);
+    setTasks(updatedTasks);
   };
 
-  const addNewPlannedTask = () => {
-    const newId = plannedTasks.length > 0 ? Math.max(...plannedTasks.map(t => t.id)) + 1 : 1;
-    setPlannedTasks(prev => [
-      ...prev,
-      { 
-        id: newId,
-        name: `Tâche ${newId}`, 
-        description: '', 
-        startDate: new Date().toISOString().split('T')[0], 
-        status: 'not_started', 
-        dueDate: '', 
-        gaps: '', 
-        comments: '',
-        type_task: 'planned',
-        completion_percentage: 0,
-        employee_notes: ''
-      }
-    ]);
+  const addNewTask = () => {
+    const newTask: TaskData = {
+      id_task: 0,
+      type_task: 'planned',
+      task_number: tasks.length + 1,
+      task_description: '',
+      task_start_dt: new Date().toISOString().split('T')[0],
+      task_end_dt: '',
+      task_status: 'not_started',
+      task_comment: ''
+    };
+    setTasks(prev => [...prev, newTask]);
   };
 
-  const removePlannedTask = (id: number) => {
-    if (plannedTasks.length <= 1) {
+  const removeTask = (index: number) => {
+    if (tasks.length <= 1) {
       error("Vous devez avoir au moins une tâche");
       return;
     }
-    setPlannedTasks(prev => prev.filter(task => task.id !== id));
-  };
-
-  const calculateGaps = (status: string, dueDate: string): string | number => {
-    if (status === 'completed') return '';
-    if (!dueDate) return '';
-    
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = due.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    return diffDays > 0 ? diffDays : 'En retard';
+    setTasks(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent, submitStatus: string = 'draft') => {
@@ -205,54 +186,51 @@ const DailyTaskReport: React.FC = () => {
     setSaving(true);
 
     try {
-      // Prepare report data
-      const reportData: Partial<DailyReport> = {
-        id: reportId || 0,
-        employee_id: parseInt(sessionData?.id || '0'),
-        report_date: new Date(employeeInfo.date),
-        branch: employeeInfo.branch,
-        department: sessionData?.department || '',
-        supervisor_id: sessionData?.superviseur_id || null,
-        status: submitStatus as any,
-        supervisor_overall_comments: supervisorComments
+      const formulaireData: Partial<Formulaire> = {
+        id_formulaire: formulaireId || 0,
+        id_user: parseInt(sessionData?.id || '0'),
+        employee_comment: employeeComment,
+        supervisor_comment: supervisorComment,
+        status: submitStatus as any
       };
 
-      // Prepare tasks data
-      const tasksData: Partial<ReportTask>[] = plannedTasks.map(task => ({
-        task_id: task.id,
-        completion_percentage: task.completion_percentage,
-        employee_notes: task.employee_notes,
-        actual_start_date: task.startDate ? new Date(task.startDate) : null,
-        actual_end_date: task.status === 'completed' && task.dueDate ? new Date(task.dueDate) : null
+      const tasksData: Partial<Task>[] = tasks.map(task => ({
+        id_task: task.id_task,
+        type_task: task.type_task,
+        task_number: task.task_number,
+        task_description: task.task_description,
+        task_start_dt: task.task_start_dt ? new Date(task.task_start_dt) : new Date(),
+        task_end_dt: task.task_end_dt ? new Date(task.task_end_dt) : null,
+        task_status: task.task_status,
+        task_comment: task.task_comment
       }));
 
-      const result = await createOrUpdateDailyReport(reportData, tasksData);
+      const result = await createOrUpdateFormulaire(formulaireData, tasksData);
 
       if (result) {
-        success(submitStatus === 'submitted' ? 'Rapport soumis avec succès!' : 'Rapport sauvegardé avec succès!');
+        success(submitStatus === 'submitted' ? 'Formulaire soumis avec succès!' : 'Formulaire sauvegardé avec succès!');
         
         if (submitStatus === 'submitted') {
-          router.push('/main/reports');
+          router.push('/main/formulaire');
         } else {
-          // Update report ID if it was a new report
-          if (!reportId && result.id) {
-            setReportId(result.id);
-            setReportStatus('draft');
+          if (!formulaireId && result.id_formulaire) {
+            setFormulaireId(result.id_formulaire);
+            setFormulaireStatus('draft');
           }
         }
       } else {
-        error('Erreur lors de la sauvegarde du rapport');
+        error('Erreur lors de la sauvegarde du formulaire');
       }
     } catch (err) {
-      console.error('Error saving report:', err);
-      error('Erreur lors de la sauvegarde du rapport');
+      console.error('Error saving formulaire:', err);
+      error('Erreur lors de la sauvegarde du formulaire');
     } finally {
       setSaving(false);
     }
   };
 
   const handleBack = () => {
-    router.push('/main/reports');
+    router.push('/main/formulaire');
   };
 
   if (loading) {
@@ -263,7 +241,7 @@ const DailyTaskReport: React.FC = () => {
     );
   }
 
-  const canEdit = reportStatus === 'draft' || !sessionData?.issupervisor;
+  const canEdit = formulaireStatus === 'draft' || !sessionData?.issupervisor;
   const isSupervisor = sessionData?.issupervisor === true || sessionData?.issupervisor === 1;
 
   return (
@@ -282,23 +260,23 @@ const DailyTaskReport: React.FC = () => {
               </button>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {action === 'update' ? 'Modifier le rapport' : 'Nouveau rapport quotidien'}
+                  {action === 'update' ? 'Modifier le formulaire' : 'Nouveau formulaire'}
                 </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                  Rapport de travail quotidien
+                  Formulaire de travail quotidien
                 </p>
               </div>
             </div>
-            {reportStatus && (
+            {formulaireStatus && (
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                reportStatus === 'draft' ? 'bg-gray-100 text-gray-800' :
-                reportStatus === 'submitted' ? 'bg-blue-100 text-blue-800' :
-                reportStatus === 'approved' ? 'bg-green-100 text-green-800' :
+                formulaireStatus === 'draft' ? 'bg-gray-100 text-gray-800' :
+                formulaireStatus === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                formulaireStatus === 'approved' ? 'bg-green-100 text-green-800' :
                 'bg-red-100 text-red-800'
               }`}>
-                {reportStatus === 'draft' ? 'Brouillon' :
-                 reportStatus === 'submitted' ? 'Soumis' :
-                 reportStatus === 'approved' ? 'Approuvé' : 'Rejeté'}
+                {formulaireStatus === 'draft' ? 'Brouillon' :
+                 formulaireStatus === 'submitted' ? 'Soumis' :
+                 formulaireStatus === 'approved' ? 'Approuvé' : 'Rejeté'}
               </span>
             )}
           </div>
@@ -310,7 +288,7 @@ const DailyTaskReport: React.FC = () => {
 
           {/* Employee Information Section */}
           <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Information sur l&apos;employé(e)</h3>
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">Information sur l'employé(e)</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
               <div className="flex flex-col">
@@ -390,14 +368,12 @@ const DailyTaskReport: React.FC = () => {
           
           {/* Tasks Section */}
           <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
-
-            {/* Header Section */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
               <h3 className="text-2xl font-bold text-gray-800">Tâches</h3>
               {canEdit && (
                 <button
                   type="button"
-                  onClick={addNewPlannedTask}
+                  onClick={addNewTask}
                   className="cursor-pointer px-5 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
                 >
                   <PlusIcon className="h-5 w-5" />
@@ -406,20 +382,18 @@ const DailyTaskReport: React.FC = () => {
               )}
             </div>
 
-            {/* Task Cards Container */}
             <div className="space-y-4">
-              {plannedTasks.map(task => (
-                <div key={`task-${task.id}`} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
+              {tasks.map((task, index) => (
+                <div key={`task-${index}`} className="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
                   
-                  {/* Actions */}
                   {canEdit && (
                     <div className="flex items-end justify-end space-x-2 mb-4">
                       <button
                         type="button"
-                        onClick={() => removePlannedTask(task.id)}
-                        disabled={plannedTasks.length <= 1}
+                        onClick={() => removeTask(index)}
+                        disabled={tasks.length <= 1}
                         className={`px-4 py-2 rounded-md text-white transition-colors cursor-pointer flex items-center gap-2 ${
-                          plannedTasks.length <= 1
+                          tasks.length <= 1
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-red-600 hover:bg-red-700'
                         }`}
@@ -430,38 +404,41 @@ const DailyTaskReport: React.FC = () => {
                     </div>
                   )}
 
-                  {/* First Row */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    {/* Task Name */}
+                    {/* Task Type */}
                     <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Nom de la tâche</label>
-                      <input
-                        type="text"
-                        value={task.name}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'name', e.target.value)}
+                      <label className="block text-sm font-medium text-gray-700">Type de tâche</label>
+                      <select
+                        value={task.type_task}
+                        onChange={(e) => handleTaskChange(index, 'type_task', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         disabled={!canEdit}
+                      >
+                        <option value="planned">Planifiée</option>
+                        <option value="unplanned">Non planifiée</option>
+                        <option value="urgent">Urgente</option>
+                      </select>
+                    </div>
+
+                    {/* Task Number */}
+                    <div className="space-y-1">
+                      <label className="block text-sm font-medium text-gray-700">Numéro de tâche</label>
+                      <input
+                        type="number"
+                        value={task.task_number}
+                        onChange={(e) => handleTaskChange(index, 'task_number', parseInt(e.target.value) || 1)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                        disabled={!canEdit}
+                        min="1"
                       />
                     </div>
 
-                    {/* Start Date */}
-                    <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Date début</label>
-                      <input
-                        type="date"
-                        value={task.startDate}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'startDate', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                        disabled={!canEdit}
-                      />
-                    </div>
-
-                    {/* Status */}
+                    {/* Task Status */}
                     <div className="space-y-1">
                       <label className="block text-sm font-medium text-gray-700">État</label>
                       <select
-                        value={task.status}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'status', e.target.value)}
+                        value={task.task_status}
+                        onChange={(e) => handleTaskChange(index, 'task_status', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         disabled={!canEdit}
                       >
@@ -474,102 +451,95 @@ const DailyTaskReport: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Second Row */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    {/* Due Date */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Start Date */}
                     <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Date d&apos;échéance</label>
+                      <label className="block text-sm font-medium text-gray-700">Date début</label>
                       <input
                         type="date"
-                        value={task.dueDate}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'dueDate', e.target.value)}
+                        value={task.task_start_dt}
+                        onChange={(e) => handleTaskChange(index, 'task_start_dt', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         disabled={!canEdit}
                       />
                     </div>
 
-                    {/* Completion Percentage */}
+                    {/* End Date */}
                     <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Pourcentage de completion</label>
+                      <label className="block text-sm font-medium text-gray-700">Date fin</label>
                       <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        value={task.completion_percentage}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'completion_percentage', parseInt(e.target.value) || 0)}
+                        type="date"
+                        value={task.task_end_dt}
+                        onChange={(e) => handleTaskChange(index, 'task_end_dt', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                         disabled={!canEdit}
                       />
-                    </div>
-
-                    {/* Gaps */}
-                    <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Écart (jours)</label>
-                      <div className={`p-2 rounded-md ${task.gaps === 'En retard' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-gray-600'}`}>
-                        {task.gaps || '-'}
-                      </div>
                     </div>
                   </div>
 
-                  {/* Description and Comments (Full width) */}
                   <div className="grid grid-cols-1 gap-4">
-                    {/* Description */}
+                    {/* Task Description */}
                     <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Description</label>
+                      <label className="block text-sm font-medium text-gray-700">Description de la tâche</label>
                       <textarea
-                        value={task.description}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'description', e.target.value)}
+                        value={task.task_description}
+                        onChange={(e) => handleTaskChange(index, 'task_description', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 min-h-[80px]"
-                        rows={2}
+                        rows={3}
                         disabled={!canEdit}
+                        placeholder="Décrivez la tâche en détail..."
                       />
                     </div>
 
-                    {/* Employee Notes */}
+                    {/* Task Comment */}
                     <div className="space-y-1">
-                      <label className="block text-sm font-medium text-gray-700">Notes de l&apos;employé</label>
+                      <label className="block text-sm font-medium text-gray-700">Commentaires sur la tâche</label>
                       <textarea
-                        value={task.employee_notes}
-                        onChange={(e) => handlePlannedTaskChange(task.id, 'employee_notes', e.target.value)}
+                        value={task.task_comment}
+                        onChange={(e) => handleTaskChange(index, 'task_comment', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 min-h-[80px]"
                         rows={2}
                         disabled={!canEdit}
+                        placeholder="Commentaires additionnels..."
                       />
                     </div>
-
-                    {/* Supervisor Feedback */}
-                    {isSupervisor && (
-                      <div className="space-y-1">
-                        <label className="block text-sm font-medium text-gray-700">Feedback du superviseur</label>
-                        <textarea
-                          value={task.supervisor_feedback || ''}
-                          onChange={(e) => handlePlannedTaskChange(task.id, 'supervisor_feedback', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 min-h-[80px]"
-                          rows={2}
-                          placeholder="Feedback pour cette tâche..."
-                        />
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
-
           </div>
 
-          {/* Supervisor Section */}
+          {/* Comments Section */}
           <div className="bg-white p-6 rounded-lg shadow-sm mb-8">
-            <h3 className="text-xl font-semibold text-gray-700 mb-4">Commentaires généraux du superviseur</h3>
-            <textarea
-              value={supervisorComments}
-              onChange={(e) => setSupervisorComments(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
-              placeholder="Commentaires généraux sur le rapport..."
-              disabled={!isSupervisor}
-            />
+            <h3 className="text-xl font-semibold text-gray-700 mb-4">Commentaires</h3>
+            
+            {/* Employee Comment */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Commentaires de l'employé</label>
+              <textarea
+                value={employeeComment}
+                onChange={(e) => setEmployeeComment(e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
+                placeholder="Vos commentaires sur le travail effectué..."
+                disabled={!canEdit}
+              />
+            </div>
+
+            {/* Supervisor Comment */}
+            {isSupervisor && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Commentaires du superviseur</label>
+                <textarea
+                  value={supervisorComment}
+                  onChange={(e) => setSupervisorComment(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 min-h-[120px]"
+                  placeholder="Commentaires du superviseur..."
+                />
+              </div>
+            )}
           </div>
           
-          {/* Notes Section */}
+          {/* Instructions Section */}
           <div className="bg-blue-50 p-6 rounded-lg shadow-sm mb-8 border-l-4 border-blue-400">
             <div className="flex">
               <div className="flex-shrink-0">
@@ -582,10 +552,11 @@ const DailyTaskReport: React.FC = () => {
                 <div className="mt-2 text-sm text-blue-700">
                   <ul className="list-disc list-inside space-y-1">
                     <li>Remplissez les informations sur vos tâches quotidiennes</li>
-                    <li>Indiquez le pourcentage de completion pour chaque tâche</li>
-                    <li>Ajoutez des notes détaillées sur votre travail</li>
+                    <li>Décrivez chaque tâche en détail</li>
+                    <li>Indiquez le statut de chaque tâche</li>
+                    <li>Ajoutez des commentaires si nécessaire</li>
                     <li>Sauvegardez régulièrement votre travail</li>
-                    <li>Soumettez le rapport une fois terminé pour révision</li>
+                    <li>Soumettez le formulaire une fois terminé pour révision</li>
                   </ul>
                 </div>
               </div>
@@ -619,7 +590,7 @@ const DailyTaskReport: React.FC = () => {
                   disabled={saving}
                   className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? 'Soumission...' : 'Soumettre le rapport'}
+                  {saving ? 'Soumission...' : 'Soumettre le formulaire'}
                 </button>
               </>
             )}
@@ -631,4 +602,4 @@ const DailyTaskReport: React.FC = () => {
   );
 };
 
-export default DailyTaskReport;
+export default FormulaireEdit;

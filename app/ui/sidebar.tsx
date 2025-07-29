@@ -31,9 +31,8 @@ export default function Sidebar() {
   return (
     <aside
       className={sidebarClasses}
-      style={{ top: '64px' }} // Matches header height
+      style={{ top: '64px' }}
     >
-      {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto py-2">
         <nav>
           <ul className="space-y-1 px-2">
@@ -53,23 +52,9 @@ export default function Sidebar() {
             />
 
             <SidebarLink
-              href="/main/tasks"
-              icon={<FiFileText className="h-5 w-5" />}
-              label="Tâches"
-              isOpen={isOpen}
-            />
-
-            <SidebarLink
               href="/main/formulaire"
               icon={<MdOutlineRequestQuote className="h-5 w-5" />}
-              label="Rapports"
-              isOpen={isOpen}
-            />
-
-            <SidebarLink
-              href="/main/reports"
-              icon={<FiFileText className="h-5 w-5" />}
-              label="Mes rapports"
+              label="Formulaires"
               isOpen={isOpen}
             />
 
@@ -91,12 +76,10 @@ export default function Sidebar() {
               isOpen={isOpen}
             />
 
-
           </ul>
         </nav>
       </div>
 
-      {/* Toggle Button at bottom */}
       <div className="p-2 border-t border-blue-800">
         <button
           onClick={() => setIsOpen(!isOpen)}
@@ -131,9 +114,9 @@ function SidebarLink({
   let isActive = false;
 
   if (href === "/main" || href === "/main/dashboard") {
-    isActive = pathname === href; // Exact match for /main
+    isActive = pathname === href;
   } else {
-    isActive = pathname.startsWith(href); // Partial match for others
+    isActive = pathname.startsWith(href);
   }
 
   return (

@@ -13,7 +13,7 @@ import {
     CalendarDaysIcon,
     PlusIcon
 } from '@heroicons/react/24/outline';
-import { getDashboardStats } from '@/app/lib/task_actions';
+import { getDashboardStats } from '@/app/lib/formulaire_actions';
 import { getSessionData } from '@/app/lib/session';
 import { DashboardStats } from '@/app/lib/definitions';
 import LoadingSpinner from '@/app/components/LoadingSpinner';
@@ -72,11 +72,11 @@ export default function DashboardPage() {
             setRefreshing(false);
         }
     };
+
     const getStatCards = (): StatCard[] => {
         if (!stats) return [];
 
         const completionRate = stats.totalTasks > 0 ? (stats.completedTasks / stats.totalTasks) * 100 : 0;
-        const overdueRate = stats.totalTasks > 0 ? (stats.overdueTasks / stats.totalTasks) * 100 : 0;
 
         return [
             {
@@ -98,8 +98,7 @@ export default function DashboardPage() {
                 trend: {
                     value: 8,
                     isPositive: true
-                },
-                onClick: () => router.push('/main/tasks?status=completed')
+                }
             },
             {
                 title: 'Tâches en cours',
@@ -109,37 +108,25 @@ export default function DashboardPage() {
                 trend: {
                     value: 3,
                     isPositive: false
-                },
-                onClick: () => router.push('/main/tasks?status=in_progress')
+                }
             },
             {
-                title: 'Tâches en retard',
-                value: stats.overdueTasks,
-                icon: <ExclamationTriangleIcon className="h-8 w-8" />,
-                color: 'bg-red-500',
-                trend: {
-                    value: 15,
-                    isPositive: false
-                },
-                onClick: () => router.push('/main/tasks?overdue=true')
-            },
-            {
-                title: 'Rapports soumis',
-                value: stats.totalReports,
+                title: 'Formulaires soumis',
+                value: stats.totalFormulaires,
                 icon: <DocumentTextIcon className="h-8 w-8" />,
                 color: 'bg-purple-500',
                 trend: {
                     value: 5,
                     isPositive: true
                 },
-                onClick: () => router.push('/main/reports')
+                onClick: () => router.push('/main/formulaire')
             },
             {
                 title: 'En attente de révision',
                 value: stats.pendingReviews,
                 icon: <CalendarDaysIcon className="h-8 w-8" />,
                 color: 'bg-orange-500',
-                onClick: () => router.push('/main/reports?status=submitted')
+                onClick: () => router.push('/main/formulaire?status=submitted')
             },
             {
                 title: 'Taux de completion',
@@ -206,16 +193,16 @@ export default function DashboardPage() {
                                 Actualiser
                             </button>
                             <button
-                                onClick={() => router.push('/main/tasks')}
-                                className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                            >
-                                Voir les tâches
-                            </button>
-                            <button
-                                onClick={() => router.push('/main/reports')}
+                                onClick={() => router.push('/main/formulaire')}
                                 className="ml-3 inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
                             >
-                                Voir les rapports
+                                Voir les formulaires
+                            </button>
+                            <button
+                                onClick={() => router.push('/main/formulaire/0/edit?action=add')}
+                                className="ml-3 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                            >
+                                Nouveau formulaire
                             </button>
                         </div>
                     </div>
@@ -278,31 +265,31 @@ export default function DashboardPage() {
                             >
                                 <PlusIcon className="h-8 w-8 text-blue-600 mr-3" />
                                 <div className="text-left">
-                                    <p className="text-sm font-medium text-gray-900">Nouveau rapport</p>
-                                    <p className="text-sm text-gray-500">Créer un rapport quotidien</p>
+                                    <p className="text-sm font-medium text-gray-900">Nouveau formulaire</p>
+                                    <p className="text-sm text-gray-500">Créer un formulaire de travail</p>
                                 </div>
                             </button>
 
                             <button
-                                onClick={() => router.push('/main/tasks')}
+                                onClick={() => router.push('/main/formulaire')}
                                 className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                             >
-                                <ChartBarIcon className="h-8 w-8 text-green-600 mr-3" />
+                                <DocumentTextIcon className="h-8 w-8 text-green-600 mr-3" />
                                 <div className="text-left">
-                                    <p className="text-sm font-medium text-gray-900">Mes tâches</p>
-                                    <p className="text-sm text-gray-500">Gérer mes tâches</p>
+                                    <p className="text-sm font-medium text-gray-900">Mes formulaires</p>
+                                    <p className="text-sm text-gray-500">Gérer mes formulaires</p>
                                 </div>
                             </button>
 
                             {userInfo?.issupervisor && (
                                 <button
-                                    onClick={() => router.push('/main/reports?status=submitted')}
+                                    onClick={() => router.push('/main/formulaire?status=submitted')}
                                     className="flex items-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                                 >
                                     <ClockIcon className="h-8 w-8 text-orange-600 mr-3" />
                                     <div className="text-left">
                                         <p className="text-sm font-medium text-gray-900">Révisions en attente</p>
-                                        <p className="text-sm text-gray-500">Rapports à réviser</p>
+                                        <p className="text-sm text-gray-500">Formulaires à réviser</p>
                                     </div>
                                 </button>
                             )}
@@ -343,7 +330,7 @@ export default function DashboardPage() {
                                             <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                                                 <div>
                                                     <p className="text-sm text-gray-500">
-                                                        Tâche <span className="font-medium text-gray-900">Rapport mensuel</span> terminée
+                                                        Formulaire <span className="font-medium text-gray-900">Rapport quotidien</span> soumis
                                                     </p>
                                                 </div>
                                                 <div className="text-right text-sm whitespace-nowrap text-gray-500">
@@ -365,7 +352,7 @@ export default function DashboardPage() {
                                             <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
                                                 <div>
                                                     <p className="text-sm text-gray-500">
-                                                        Nouveau rapport soumis pour révision
+                                                        Nouveau formulaire créé
                                                     </p>
                                                 </div>
                                                 <div className="text-right text-sm whitespace-nowrap text-gray-500">

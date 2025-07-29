@@ -1,10 +1,9 @@
-// app/page/users/edit/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams, useParams, usePathname } from 'next/navigation';
 import { FaSave, FaTimes, FaArrowLeft } from 'react-icons/fa';
-import { searchUser, createorUpdateUser, getUserProfileList, getBranchList } from '@/app/lib/user_actions';
+import { searchUser, createorUpdateUser, getUserProfileList, getBranchList, getSupervisorsList } from '@/app/lib/user_actions';
 import { CreateUpdateUser, SelectList, CreateUpdateResult } from '@/app/lib/definitions';
 import React from 'react';
 import SelectWrapper from '@/app/ui/select_list';
@@ -15,7 +14,6 @@ import { checkSession } from '@/app/lib/utils';
 import { useRef } from 'react';
 
 export default function UserEdit() {
-
   const { success, error } = useToast();
   const pwdConfRef = useRef<HTMLInputElement>(null);
   const params = useParams()
@@ -25,94 +23,79 @@ export default function UserEdit() {
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setLoading] = useState(true);
   const [profileList, setProfileList] = useState<SelectList[] | null>([]);
-  const [organisationList, setOrganisationList] = useState<SelectList[] | null>([]);
-  const [ecoleList, setEcoleList] = useState<SelectList[] | null>([]);
+  const [branchList, setBranchList] = useState<SelectList[] | null>([]);
+  const [supervisorsList, setSupervisorsList] = useState<SelectList[] | null>([]);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [formData, setFormData] = useState<CreateUpdateUser>({
-    id_user: 0,
+    id: 0,
     username: '',
     fullname: '',
     phone: '',
     status: 'A',
     password: '',
     auth_type: 'ad',
-    profileid: 0,
+    id_user_profile: 0,
     email: '',
     locked: 0,
     version: '',
     created_by: 0,
     use_mfa: 0,
-    id_organisation: 0,
-    id_ecole: 0,
+    branch: 0,
     access_level: 'branch',
     user_must_change_pwd: 1,
     create_dt: new Date(),
     expiry_date: new Date(),
+    update_dt: null,
+    last_login_date: null,
+    last_login_result: null,
+    failed_login_count: 0,
     registration_number: '',
     position: '',
-    superviseur: '',
+    superviseur: null,
     issupervisor: 0
   });
 
-  // Get action and user ID from URL
   const action = searchParams.get('action') || 'add';
-
-  //get the param id
   const { id } = params
 
-  //check session
   useEffect(() => {
-
     if (typeof window !== 'undefined') {
       const fullUrl = `${window.location.origin}${pathname}`;
       checkSession(`/login?callbackUrl=${fullUrl}`);
     }
-
   }, [pathname]);
 
   useEffect(() => {
-    
     const loadUserData = async () => {
       try {
         if (action === 'update' && id !== '0') {
-      
-              const i_params = {
-                  scope: "userid",
-                  value: String(id)
-              };
-            const user = await searchUser(i_params);
-            if (user) {
-              user[0].password = '';
-              setFormData(user[0]);
-              
-              // Load ecoles for the selected organisation
-              if (user[0].id_organisation) {
-                const ecoles = await getEcoleList(user[0].id_organisation);
-                setEcoleList(ecoles);
-              }
-            }
+          const i_params = {
+            scope: "userid",
+            value: String(id)
+          };
+          const user = await searchUser(i_params);
+          if (user) {
+            user[0].password = '';
+            setFormData(user[0]);
+          }
         }
 
-        //profile list
+        // Load dropdown lists
         const profileList = await getUserProfileList()
         setProfileList(profileList);
 
-        //organisation list
-        const organisationList = await getOrganisationList()
-        setOrganisationList(organisationList);
+        const branchList = await getBranchList()
+        setBranchList(branchList);
         
-        //ecole list (all if no specific organisation)
-        const ecoleList = await getEcoleList()
-        setEcoleList(ecoleList);
+        const supervisorsList = await getSupervisorsList()
+        setSupervisorsList(supervisorsList);
 
-        //get userId from session storage
         const userId = sessionStorage.getItem("userId");
         setCurrentUserId(String(userId));
         setFormData(prevState => ({
           ...prevState,
           created_by: Number(userId)
         }));
-
 
       } catch (error) {
         console.error('Error loading user:', error);
@@ -132,38 +115,22 @@ export default function UserEdit() {
         return { ...prev, [name]: (e.target as HTMLInputElement).checked ? 1 : 0 };
       }
       else if (type === 'datetime-local') {
-        // Convert to ISO string (UTC) before saving
-        return { ...prev, [name]: new Date(value).toISOString() };
+        return { ...prev, [name]: new Date(value) };
       }
       else {
         return { ...prev, [name]: value };
       }
     });
-    
-    // Load ecoles when organisation changes
-    if (name === 'id_organisation') {
-      const loadEcoles = async () => {
-        const ecoles = await getEcoleList(parseInt(value));
-        setEcoleList(ecoles);
-        // Reset ecole selection when organisation changes
-        setFormData(prev => ({ ...prev, id_ecole: 0 }));
-      };
-      loadEcoles();
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    //const id = loading("Enregistrement de l'utilisateur...");
     setIsSaving(true);
 
-    //check if password and confirm password match
     if (pwdConfRef.current) {
       const value = pwdConfRef.current.value;
-
       if(value != formData.password){
-        error('Mot de passe et confirmation ne matchent pas!');
+        error('Mot de passe et confirmation ne correspondent pas!');
         setIsSaving(false);
         return;
       }
@@ -174,7 +141,6 @@ export default function UserEdit() {
         const result = await createorUpdateUser(formData);
         if(result){
           success('Enregistré avec succès!');
-          //update version
           setFormData(prevState => ({
             ...prevState,
             version: (result[0] as CreateUpdateResult).version
@@ -187,7 +153,7 @@ export default function UserEdit() {
         const result = await createorUpdateUser(formData);
         if(result){
           success('Enregistré avec succès!');
-          router.replace(`/main/users/${(result[0] as CreateUpdateResult).id_user}/edit?action=update`)
+          router.replace(`/main/users/${(result[0] as CreateUpdateResult).id}/edit?action=update`)
         }
         else {
           error("Erreur lors de l'enregistrement");
@@ -228,7 +194,7 @@ export default function UserEdit() {
             <h1 className="text-2xl font-bold">
               {action === 'update' ? 'Modifier Utilisateur' : 'Ajouter Nouvel Utilisateur'}
             </h1>
-            <div className="w-24"></div> {/* Spacer for alignment */}
+            <div className="w-24"></div>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -266,7 +232,7 @@ export default function UserEdit() {
                 />
               </div>
 
-              {/* auth type */}
+              {/* Auth type */}
               <div className="space-y-1">
                 <label htmlFor="auth_type" className="block text-sm font-medium text-gray-700">
                   Type Authentification *
@@ -279,15 +245,15 @@ export default function UserEdit() {
                   required
                   className="input"
                 >
-                  <option value="local" disabled>Local</option>
+                  <option value="local">Local</option>
                   <option value="ad">Active Directory</option>
                 </select>
               </div>
 
-              {/* access level */}
+              {/* Access level */}
               <div className="space-y-1">
                 <label htmlFor="access_level" className="block text-sm font-medium text-gray-700">
-                  Niveau d&apos;access *
+                  Niveau d'accès *
                 </label>
                 <select
                   id="access_level"
@@ -297,55 +263,51 @@ export default function UserEdit() {
                   required
                   className="input"
                 >
-                  <option value="ecole">École</option>
-                  <option value="organisation">Organisation</option>
+                  <option value="branch">Branche</option>
+                  <option value="department">Département</option>
                   <option value="all">Tout</option>
                 </select>
               </div>
 
-              {/*  id */}
-              <input type='hidden' name='id_user' id='id_user' value={String(formData.id_user)}/>
-
-              {/* version*/}
+              {/* Hidden fields */}
+              <input type='hidden' name='id' id='id' value={String(formData.id)}/>
               <input type='hidden' name='version' id='version' value={formData.version}/>
-
-               {/* created_by */}
               <input type='hidden' name='created_by' id='created_by' value={currentUserId}/>
 
-              {/* Organisation */}
+              {/* Branch */}
               <SelectWrapper
-                label="Organisation *"
-                name="id_organisation"
+                label="Branche *"
+                name="branch"
                 isDisabled={false}
-                value={String(formData.id_organisation)}
-                options={organisationList}
+                value={String(formData.branch)}
+                options={branchList}
                 onChange={handleChange}
               />
               
-              {/* École */}
+              {/* User profile */}
               <SelectWrapper
-                label="École"
-                name="id_ecole"
+                label="Profil *"
+                name="id_user_profile"
                 isDisabled={false}
-                value={String(formData.id_ecole)}
-                options={ecoleList}
-                onChange={handleChange}
-              />
-
-              {/* user profile */}
-              <SelectWrapper
-                label="Profil"
-                name="profileid"
-                isDisabled={false}
-                value={String(formData.profileid)}
+                value={String(formData.id_user_profile)}
                 options={profileList}
                 onChange={handleChange}
               />
 
-              {/* email */}
+              {/* Supervisor */}
+              <SelectWrapper
+                label="Superviseur"
+                name="superviseur"
+                isDisabled={false}
+                value={String(formData.superviseur || '')}
+                options={supervisorsList}
+                onChange={handleChange}
+              />
+
+              {/* Email */}
               <div className="space-y-1">
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                  Adresse Mail
+                  Adresse Mail *
                 </label>
                 <input
                   type="email"
@@ -392,11 +354,10 @@ export default function UserEdit() {
                 </select>
               </div>
 
-
               {/* Locked */}
               <div className="space-y-1">
                 <label htmlFor="locked" className="block text-sm font-medium text-gray-700">
-                  Verrouillé *
+                  Verrouillé
                 </label>
                 <div className="flex items-center border border-gray-300 rounded-md p-3">
                   <input
@@ -410,22 +371,22 @@ export default function UserEdit() {
                 </div>
               </div>
 
-              {/* registration_number */}
+              {/* Registration number */}
               <div className="space-y-1">
                 <label htmlFor="registration_number" className="block text-sm font-medium text-gray-700">
-                  Numéro d&apos;enregistrement
+                  Numéro d'enregistrement
                 </label>
                 <input
                   type="text"
                   id="registration_number"
                   name="registration_number"
-                  value={String(formData.registration_number)}
+                  value={String(formData.registration_number || '')}
                   onChange={handleChange}
                   className="input"
                 />
               </div>
 
-              {/* position */}
+              {/* Position */}
               <div className="space-y-1">
                 <label htmlFor="position" className="block text-sm font-medium text-gray-700">
                   Position
@@ -434,31 +395,16 @@ export default function UserEdit() {
                   type="text"
                   id="position"
                   name="position"
-                  value={String(formData.position)}
+                  value={String(formData.position || '')}
                   onChange={handleChange}
                   className="input"
                 />
               </div>
 
-              {/* superviseur */}
-              <div className="space-y-1">
-                <label htmlFor="superviseur" className="block text-sm font-medium text-gray-700">
-                  Superviseur
-                </label>
-                <input
-                  type="text"
-                  id="superviseur"
-                  name="superviseur"
-                  value={String(formData.superviseur)}
-                  onChange={handleChange}
-                  className="input"
-                />
-              </div>
-
-              {/* issupervisor */}
+              {/* Is supervisor */}
               <div className="space-y-1">
                 <label htmlFor="issupervisor" className="block text-sm font-medium text-gray-700">
-                  Est t&apos; il superviseur
+                  Est superviseur
                 </label>
                 <select
                   id="issupervisor"
@@ -472,17 +418,16 @@ export default function UserEdit() {
                 </select>
               </div>
 
-              {/* use_mfa */}
+              {/* Use MFA */}
               <div className="space-y-1">
                 <label htmlFor="use_mfa" className="block text-sm font-medium text-gray-700">
-                    Activer l&apos;authentification multi-facteurs
+                  Authentification multi-facteurs
                 </label>
                 <select
                   id="use_mfa"
                   name="use_mfa"
                   value={String(formData.use_mfa)}
                   onChange={handleChange}
-                  required
                   className="input"
                 >
                   <option value="0">Non</option>
@@ -490,26 +435,10 @@ export default function UserEdit() {
                 </select>
               </div>
 
-              {/* create date */}
-              <div className="space-y-1">
-                <label htmlFor="create_dt" className="block text-sm font-medium text-gray-700">
-                  Date de création *
-                </label>
-                <input
-                  type="datetime-local"
-                  id="create_dt"
-                  name="create_dt"
-                  value={formData.create_dt ? new Date(formData.create_dt).toISOString().slice(0, 16) :''}
-                  onChange={handleChange}
-                  disabled
-                  className="input"
-                />
-              </div>
-
               {/* Expiry date */}
               <div className="space-y-1">
                 <label htmlFor="expiry_date" className="block text-sm font-medium text-gray-700">
-                  Date d&apos;expiration
+                  Date d'expiration
                 </label>
                 <input
                   type="datetime-local"
@@ -531,7 +460,7 @@ export default function UserEdit() {
                   id="password"
                   name="password"
                   disabled={formData.auth_type == "ad" ? true : false}
-                  value={String(formData.password)}
+                  value={String(formData.password || '')}
                   onChange={handleChange}
                   className="input"
                 />
@@ -539,7 +468,7 @@ export default function UserEdit() {
 
               {/* Confirm Password */}
               <div className="space-y-1">
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password_confirm" className="block text-sm font-medium text-gray-700">
                   Confirmer Mot de passe
                 </label>
                 <input
@@ -552,10 +481,7 @@ export default function UserEdit() {
               
             </div>
 
-            {/* Bottom button */}
-
             <div className="mt-8 flex justify-end space-x-4">
-
               <button
                 type="button"
                 onClick={handleCancel}
@@ -567,17 +493,14 @@ export default function UserEdit() {
 
               <button
                 type="submit"
-                disabled={isLoading}
+                disabled={isSaving}
                 className="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <FaSave className="mr-2" />
                 {isSaving ? <BeatLoader size={6} color="#fff" /> : 'Enregistrer'}
               </button>
-
             </div>
-          
           </form>
-
         </div>
       </div>
     </main>

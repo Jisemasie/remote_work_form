@@ -9,16 +9,14 @@ declare module "next-auth" {
     lastLogin?: string;
     profileName?: string;
     profileId?: number;
-    orgId?: number;
-    orgName?: string;
-    schoolId?: number; 
+    branch?: number;
+    branchName?: string;
     accessLevel?: string;
     sessionId?: string; 
     registration_number?: string;
     position?: string;
     issupervisor?: boolean;
     superviseur?: string;
-    branch: string; 
   }
 
   interface Session {
@@ -32,16 +30,14 @@ declare module "next-auth" {
       lastLogin?: string;
       profileName?: string;
       profileId?: number;
-      orgId?: number;
-      orgName?: string;
-      schoolId?: number;
+      branch?: number;
+      branchName?: string;
       accessLevel?: string;
       sessionId?: string;
       registration_number?: string;
       position?: string;
       issupervisor?: boolean;
       superviseur?: string;
-      branch: string; 
     };
   }
 }
@@ -52,9 +48,8 @@ declare module "next-auth/jwt" {
     fullName?: string;
     username?: string;
     lastLogin?: string;
-    orgId?: number;
-    orgName?: string;
-    schoolId?: number;
+    branch?: number;
+    branchName?: string;
     profileName?: string;
     profileId?: number;
     accessLevel?: string;
@@ -63,6 +58,5 @@ declare module "next-auth/jwt" {
     position?: string;
     issupervisor?: boolean;
     superviseur?: string;
-    branch: string; 
   }
 }

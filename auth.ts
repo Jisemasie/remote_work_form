@@ -44,23 +44,21 @@ export const { auth, signIn, signOut } = NextAuth({
 
               // Convert to NextAuth User type
               const user: User = {
-                id: dbUser.id_user?.toString() ?? '', // Convert number to string
+                id: dbUser.id?.toString() ?? '', // Convert number to string
                 name: dbUser.fullname ?? '',
                 fullName: dbUser.fullname ?? '',
                 username: dbUser.username ?? '',
                 email: dbUser.email ?? '',
                 profileName: dbUser.profile_name ?? '',
-                profileId: dbUser.profileid,
-                orgId: dbUser.id_organisation ?? 0,
-                orgName: dbUser.nom_organisation ?? '',
-                schoolId: dbUser.id_ecole ?? 0,
+                profileId: dbUser.id_user_profile,
+                branch: dbUser.branch ?? 0,
+                branchName: dbUser.branch_name ?? '',
                 accessLevel: dbUser.access_level ?? '',
                 sessionId: uuidv4(), // Generate a new session ID
                 registration_number: dbUser.registration_number ?? '',
                 position: dbUser.position ?? '',
                 issupervisor: dbUser.issupervisor ?? false,
                 superviseur: dbUser.superviseur ?? '',
-                branch: dbUser.branch ?? '',
               };
 
               return user;
